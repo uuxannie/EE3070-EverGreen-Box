@@ -7,7 +7,7 @@ const plantData = {
         name: "Cactus",
         confidence: "96%",
         image:
-            "https://images.unsplash.com/photo-1459156212016-c812468e2115?auto=format&fit=crop&w=1200&q=80",
+            "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2023/003/16489908-remodeledcactusicon_l.webp",
         personality: "calm and a little aloof",
         greeting:
             "Hello, I’m your Cactus. I prefer dry soil and a bit of personal space 🌵",
@@ -26,7 +26,7 @@ const plantData = {
         name: "Succulent",
         confidence: "94%",
         image:
-            "https://images.unsplash.com/photo-1463154545680-d59320fd685d?auto=format&fit=crop&w=1200&q=80",
+            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZ5mV5N0Kt81Lv7CzONjqdBbQkeS-fSY374w&s",
         personality: "gentle and easygoing",
         greeting:
             "Hi, I’m your Succulent. I like bright light and careful watering 🌱",
@@ -45,7 +45,7 @@ const plantData = {
         name: "Pothos",
         confidence: "95%",
         image:
-            "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80",
+            "https://www.guide-to-houseplants.com/images/golden-pothos.jpg",
         personality: "friendly and talkative",
         greeting:
             "Hi! I’m your Pothos. Thanks for checking on me today 🌿",
