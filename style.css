@@ -15,8 +15,8 @@ body {
     font-family: 'Poppins', sans-serif;
     letter-spacing: 2px;
 
-    background: linear-gradient(transparent 65%, #c8f7d2 65%);
-    text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.15);
+    background: linear-gradient(transparent 65%, #1c8c3472 65%);
+    text-shadow: 2px 2px 0 rgba(0, 0, 5, 0.168);
 }
 
 .container {
@@ -73,27 +73,34 @@ body {
     background: #dff3e2;
     color: #1f6b34;
     padding: 12px 18px;
-    border-radius: 12px;
+    border-radius: 10px;
     font-weight: bold;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .dashboard-columns {
-    display: flex;
-    gap: 20px;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    align-items: start;
 }
 
 .column {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 24px;
+    min-width: 0;
+}
+
+.panel,
+.plant-section,
+.recognition-grid {
+    min-width: 0;
 }
 
 .panel {
     background: white;
-    border-radius: 18px;
+    border-radius: 10px;
     padding: 20px;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
     height: fit-content;
@@ -140,7 +147,7 @@ body {
 .mini-summary {
     background: #f3f8f2;
     border: 1px solid #e2e9e1;
-    border-radius: 12px;
+    border-radius: 10px;
     padding: 12px 14px;
     min-width: 150px;
     display: flex;
@@ -160,14 +167,16 @@ body {
 }
 
 .image-box {
-    width: 100%;
-    height: 280px;
+    width: min(100%, 220px);
+    aspect-ratio: 4 / 5;
     overflow: hidden;
-    border-radius: 14px;
+    border-radius: 8px;
     background: #eef3ec;
+    margin: 0 auto 16px;
 }
 
 .image-box img {
+    display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
@@ -182,7 +191,7 @@ body {
 .info-box {
     background: #f8fbf7;
     border: 1px solid #e3ece2;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 14px;
 }
 
@@ -205,7 +214,7 @@ body {
 
 button {
     border: none;
-    border-radius: 12px;
+    border-radius: 30px;
     padding: 11px 16px;
     font-size: 0.96rem;
     cursor: pointer;
@@ -229,7 +238,7 @@ button:hover {
 .care-card {
     background: #f8fbf7;
     border: 1px solid #e3ece2;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 14px;
 }
 
@@ -268,14 +277,14 @@ button:hover {
     height: 320px;
     background: #fbfdfb;
     border: 1px solid #e6ece5;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 10px;
 }
 
 .report-box {
     background: #f8fbf7;
     border: 1px solid #e3ece2;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 16px;
     line-height: 1.7;
 }
@@ -283,7 +292,7 @@ button:hover {
 .timelapse-box {
     background: #f8fbf7;
     border: 1px solid #e3ece2;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 16px;
 }
 
@@ -296,7 +305,7 @@ button:hover {
 
 .timelapse-gif {
     width: 100%;
-    border-radius: 14px;
+    border-radius: 10px;
     margin-bottom: 10px;
 }
 
@@ -321,7 +330,7 @@ button:hover {
 .frame {
     background: white;
     border: 1px dashed #afc3af;
-    border-radius: 10px;
+    border-radius: 8px;
     padding: 18px 20px;
     min-width: 90px;
     text-align: center;
@@ -333,7 +342,7 @@ button:hover {
     overflow-y: auto;
     background: #f8fbf7;
     border: 1px solid #e3ece2;
-    border-radius: 14px;
+    border-radius: 10px;
     padding: 14px;
     margin-bottom: 14px;
 }
@@ -341,7 +350,7 @@ button:hover {
 .chat-message {
     max-width: 80%;
     padding: 10px 14px;
-    border-radius: 14px;
+    border-radius: 10px;
     margin-bottom: 10px;
     line-height: 1.5;
 }
@@ -365,7 +374,7 @@ button:hover {
 .chat-input-row input {
     flex: 1;
     border: 1px solid #d9e4d8;
-    border-radius: 12px;
+    border-radius: 30px;
     padding: 12px 14px;
     font-size: 0.95rem;
 }
@@ -380,9 +389,9 @@ button:hover {
     color: #a12626 !important;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 768px) {
     .dashboard-columns {
-        flex-direction: column;
+        grid-template-columns: 1fr;
     }
 
     .recognition-grid,
@@ -393,5 +402,9 @@ button:hover {
 
     .topbar {
         flex-direction: column;
+    }
+
+    .image-box {
+        width: min(100%, 200px);
     }
 }
