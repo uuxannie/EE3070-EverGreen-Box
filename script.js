@@ -1,3 +1,6 @@
+//const API_URL = "http://127.0.0.1:8000/chat";
+const API_URL = "https://evergreen-box-backend.onrender.com/chat";
+
 let todayWaterCount = 2;
 let todayLightCount = 1;
 let todayVentCount = 1;
@@ -206,40 +209,24 @@ function simulateRotRisk() {
 }
 
 function changePlant() {
-    const selected = document.getElementById("plantSelect").value;
-    const data = plantData[selected];
+    const selectEl = document.getElementById("plantSelect");
+    const plantTypeEl = document.getElementById("plantType");
+    const confidenceEl = document.getElementById("confidence");
+    const plantImageEl = document.getElementById("plantImage");
+    const weeklyReportEl = document.getElementById("weeklyReport");
 
-    document.getElementById("plantType").textContent = data.name;
-    document.getElementById("confidence").textContent = data.confidence;
-    document.getElementById("plantImage").src = data.image;
-    document.getElementById("weeklyReport").textContent = data.report;
-    document.getElementById("currentAdvice").textContent = data.advice;
-
-    const chatBox = document.getElementById("chatBox");
-    chatBox.innerHTML = `
-    <div class="chat-message plant">${data.greeting}</div>
-    <div class="chat-message plant">My personality is ${data.personality}, so please take good care of me.</div>
-  `;
-
-    if (selected === "cactus") {
-        document.getElementById("soilMoisture").textContent = "24%";
-        document.getElementById("lightLevel").textContent = "740 lux";
-        document.getElementById("humidity").textContent = "40%";
-        document.getElementById("temperature").textContent = "27°C";
-    } else if (selected === "succulent") {
-        document.getElementById("soilMoisture").textContent = "36%";
-        document.getElementById("lightLevel").textContent = "640 lux";
-        document.getElementById("humidity").textContent = "50%";
-        document.getElementById("temperature").textContent = "25°C";
-    } else {
-        document.getElementById("soilMoisture").textContent = "42%";
-        document.getElementById("lightLevel").textContent = "520 lux";
-        document.getElementById("humidity").textContent = "68%";
-        document.getElementById("temperature").textContent = "25°C";
+    if (!selectEl || !plantTypeEl || !confidenceEl || !plantImageEl || !weeklyReportEl) {
+        console.log("changePlant skipped: required elements not found");
+        return;
     }
 
-    simulateHealthy();
-    loadChart(currentMetric);
+    const selected = selectEl.value;
+    const data = plantData[selected];
+
+    plantTypeEl.textContent = data.name;
+    confidenceEl.textContent = data.confidence;
+    plantImageEl.src = data.image;
+    weeklyReportEl.textContent = data.report;
 }
 
 function getCurrentPlantKey() {
@@ -289,18 +276,30 @@ function loadChart(metric) {
     });
 }
 
-function sendMessage() {
+// 清理后唯一且干净的 sendMessage 函数
+async function sendMessage() {
     const input = document.getElementById("chatInput");
+    const chatBox = document.getElementById("chatBox");
+
     const text = input.value.trim();
     if (!text) return;
 
-    const chatBox = document.getElementById("chatBox");
-
+    // 1. 渲染用户的消息
     const userMsg = document.createElement("div");
     userMsg.className = "chat-message user";
-    userMsg.textContent = text;
+    userMsg.innerText = text;
     chatBox.appendChild(userMsg);
 
+    input.value = "";
+
+    // 2. 显示加载中状态
+    const loadingMsg = document.createElement("div");
+    loadingMsg.className = "chat-message plant";
+    loadingMsg.innerText = "🌱 thinking...";
+    chatBox.appendChild(loadingMsg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 3. 获取当前植物的环境数据 (之前缺失的变量)
     const plantKey = getCurrentPlantKey();
     const plantName = plantData[plantKey].name;
     const soil = document.getElementById("soilMoisture").textContent;
@@ -308,54 +307,67 @@ function sendMessage() {
     const humidity = document.getElementById("humidity").textContent;
     const disease = document.getElementById("diseaseClass").textContent;
 
-    let reply = "";
+    // 4. 发送请求给 FastAPI
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            controller.abort();
+        }, 15000); // 15秒超时
 
-    if (text.toLowerCase().includes("how are you") || text.includes("怎么样") || text.includes("还好吗")) {
-        reply = `I’m Mr. ${plantName}, and I’m feeling okay today. My soil moisture is ${soil}, temperature is ${temp}, and humidity is ${humidity}. It's quite comfy here~ I'm happy that you come to visit me. ^v^`;
-    } else if (text.toLowerCase().includes("water") || text.includes("浇水")) {
-        reply = `As a ${plantName}, I’m currently seeing soil moisture at ${soil}. Do you think I need more water? Don't forget to stay hydrated yourself as well!`;
-    } else if (text.toLowerCase().includes("health") || text.includes("健康") || text.includes("病")) {
-        reply = `My latest AI health result is: ${disease}. Please keep monitoring me carefully. I would feel more at ease if you could stay with me more or play your favorite music for me~`;
-    } else {
-        reply = `Hello from your ${plantName}! Based on today’s environment, I’ll keep growing as long as you continue caring for me 🌿`;
+        console.log("Sending request to:", API_URL);
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                message: `User message: ${text}\n\nPlant info:\nName: ${plantName}\nSoil moisture: ${soil}\nTemperature: ${temp}\nHumidity: ${humidity}\nHealth: ${disease}`
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        // 检查后端是否返回非 200 状态码
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Response data:", data);
+
+        // 5. 渲染 AI 的回复
+        chatBox.removeChild(loadingMsg);
+        const plantMsg = document.createElement("div");
+        plantMsg.className = "chat-message plant";
+        plantMsg.textContent = data.reply || data.error || "No valid reply returned.";
+        chatBox.appendChild(plantMsg);
+
+    } catch (error) {
+        console.error("Fetch error:", error);
+        chatBox.removeChild(loadingMsg);
+
+        const plantMsg = document.createElement("div");
+        plantMsg.className = "chat-message plant";
+
+        if (error.name === "AbortError") {
+            plantMsg.textContent = "⚠️ The backend took too long to respond.";
+        } else if (String(error).includes("Failed to fetch")) {
+            plantMsg.textContent = "⚠️ Cannot reach the backend. Please check if FastAPI is running.";
+        } else {
+            plantMsg.textContent = "⚠️ Connection error. Please try again.";
+        }
+
+        chatBox.appendChild(plantMsg);
     }
 
-    const plantMsg = document.createElement("div");
-    plantMsg.className = "chat-message plant";
-    plantMsg.textContent = reply;
-    chatBox.appendChild(plantMsg);
-
-    input.value = "";
     chatBox.scrollTop = chatBox.scrollHeight;
 }
 
-function fakeSensorRefresh() {
-    const plantKey = getCurrentPlantKey();
-
-    if (plantKey === "cactus") {
-        const humidity = 35 + Math.floor(Math.random() * 8);
-        const temperature = 26 + Math.floor(Math.random() * 3);
-        document.getElementById("humidity").textContent = `${humidity}%`;
-        document.getElementById("temperature").textContent = `${temperature}°C`;
-    } else if (plantKey === "succulent") {
-        const humidity = 45 + Math.floor(Math.random() * 10);
-        const temperature = 24 + Math.floor(Math.random() * 3);
-        document.getElementById("humidity").textContent = `${humidity}%`;
-        document.getElementById("temperature").textContent = `${temperature}°C`;
-    } else {
-        const humidity = 60 + Math.floor(Math.random() * 12);
-        const temperature = 24 + Math.floor(Math.random() * 3);
-        document.getElementById("humidity").textContent = `${humidity}%`;
-        document.getElementById("temperature").textContent = `${temperature}°C`;
-    }
-}
-
-document.getElementById("chatInput").addEventListener("keydown", function (e) {
+// press enter to send message
+document.getElementById("chatInput").addEventListener("keypress", function (e) {
     if (e.key === "Enter") {
         sendMessage();
     }
 });
-
-refreshSummaryCounts();
-changePlant();
-setInterval(fakeSensorRefresh, 5000);
