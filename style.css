@@ -338,7 +338,7 @@ button:hover {
 }
 
 .chat-box {
-    height: 230px;
+    height: 380px;
     overflow-y: auto;
     background: #f8fbf7;
     border: 1px solid #e3ece2;
