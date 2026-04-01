@@ -1,5 +1,5 @@
 //const API_URL = "http://127.0.0.1:8000/chat";
-const API_URL = "https://evergreen-box-backend.onrender.com/chat";
+const API_URL = "https://evergreen-box-backend.onrender.com/api/chat";
 
 let todayWaterCount = 2;
 let todayLightCount = 1;
