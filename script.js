@@ -388,8 +388,11 @@ async function sendMessage() {
     }
 }
 
-// press enter to send message
+// press button to send message
 document.getElementById("sendBtn").addEventListener("click", sendMessage);
+
+// press enter to send message
+document.getElementById("chatInput").addEventListener("keypress", function (e) {
     if (e.key === "Enter") {
         e.preventDefault();
         sendMessage();
