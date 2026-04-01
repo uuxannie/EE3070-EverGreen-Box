@@ -389,7 +389,7 @@ async function sendMessage() {
 }
 
 // press enter to send message
-document.getElementById("chatInput").addEventListener("keypress", function (e) {
+document.getElementById("sendBtn").addEventListener("click", sendMessage);
     if (e.key === "Enter") {
         e.preventDefault();
         sendMessage();
