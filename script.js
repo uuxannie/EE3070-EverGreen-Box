@@ -275,13 +275,24 @@ function loadChart(metric) {
     });
 }
 
-// 清理后唯一且干净的 sendMessage 函数
+let isSending = false;
+
 async function sendMessage() {
+    if (isSending) return;
+
     const input = document.getElementById("chatInput");
     const chatBox = document.getElementById("chatBox");
+    const sendBtn = document.getElementById("sendBtn");
 
     const text = input.value.trim();
     if (!text) return;
+
+    isSending = true;
+    input.disabled = true;
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.textContent = "Sending...";
+    }
 
     // 1. 渲染用户的消息
     const userMsg = document.createElement("div");
@@ -298,7 +309,7 @@ async function sendMessage() {
     chatBox.appendChild(loadingMsg);
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // 3. 获取当前植物的环境数据 (之前缺失的变量)
+    // 3. 获取当前植物的环境数据
     const plantKey = getCurrentPlantKey();
     const plantName = plantData[plantKey].name;
     const soil = document.getElementById("soilMoisture").textContent;
@@ -311,7 +322,7 @@ async function sendMessage() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => {
             controller.abort();
-        }, 15000); // 15秒超时
+        }, 20000); // 改成20秒更稳一点
 
         console.log("Sending request to:", API_URL);
 
@@ -328,7 +339,6 @@ async function sendMessage() {
 
         clearTimeout(timeoutId);
 
-        // 检查后端是否返回非 200 状态码
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -336,8 +346,10 @@ async function sendMessage() {
         const data = await response.json();
         console.log("Response data:", data);
 
-        // 5. 渲染 AI 的回复
-        chatBox.removeChild(loadingMsg);
+        if (loadingMsg.parentNode) {
+            chatBox.removeChild(loadingMsg);
+        }
+
         const plantMsg = document.createElement("div");
         plantMsg.className = "chat-message plant";
         plantMsg.textContent = data.reply || data.error || "No valid reply returned.";
@@ -345,7 +357,10 @@ async function sendMessage() {
 
     } catch (error) {
         console.error("Fetch error:", error);
-        chatBox.removeChild(loadingMsg);
+
+        if (loadingMsg.parentNode) {
+            chatBox.removeChild(loadingMsg);
+        }
 
         const plantMsg = document.createElement("div");
         plantMsg.className = "chat-message plant";
@@ -359,14 +374,24 @@ async function sendMessage() {
         }
 
         chatBox.appendChild(plantMsg);
-    }
+    } finally {
+        isSending = false;
+        input.disabled = false;
+        input.focus();
 
-    chatBox.scrollTop = chatBox.scrollHeight;
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.textContent = "Send";
+        }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
 }
 
 // press enter to send message
 document.getElementById("chatInput").addEventListener("keypress", function (e) {
     if (e.key === "Enter") {
+        e.preventDefault();
         sendMessage();
     }
 });
