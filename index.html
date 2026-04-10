@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,7 +7,6 @@
     <link rel="stylesheet" href="style.css" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-
 <body>
     <div class="container">
         <header class="topbar">
@@ -27,38 +25,34 @@
                         <option value="pothos">Pothos</option>
                     </select>
                 </div>
-
                 <div class="system-status" id="systemStatus">
-                    System Status: Healthy
+                    System Status: Connecting...
                 </div>
             </div>
         </header>
 
         <main class="dashboard-columns">
-            <!-- Left Column -->
             <div class="column">
-                <!-- Environment -->
                 <section class="panel">
                     <h2>Environment Overview</h2>
                     <div class="card-grid">
                         <div class="card">
                             <p class="label">Temperature</p>
-                            <p class="value" id="temperature">25°C</p>
+                            <p class="value" id="temperature">--°C</p>
                         </div>
                         <div class="card">
                             <p class="label">Humidity</p>
-                            <p class="value" id="humidity">68%</p>
+                            <p class="value" id="humidity">--%</p>
                         </div>
                         <div class="card">
                             <p class="label">Soil Moisture</p>
-                            <p class="value" id="soilMoisture">42%</p>
+                            <p class="value" id="soilMoisture">--%</p>
                         </div>
                         <div class="card">
                             <p class="label">Light Intensity</p>
-                            <p class="value" id="lightLevel">520 lux</p>
+                            <p class="value" id="lightLevel">-- lux</p>
                         </div>
                     </div>
-
                     <div class="summary-row">
                         <div class="mini-summary">
                             <span class="mini-title">Mode</span>
@@ -75,10 +69,8 @@
                     </div>
                 </section>
 
-                <!-- Automatic Care -->
                 <section class="panel">
                     <h2>Automatic Care Actions</h2>
-
                     <div class="button-group">
                         <button onclick="waterPlant()">Manual Water</button>
                         <button onclick="turnOnLight()">Manual Light</button>
@@ -93,10 +85,9 @@
                             <p>Lighting Adjustment: <strong id="todayLight">1</strong></p>
                             <p>Ventilation Events: <strong id="todayVent">1</strong></p>
                         </div>
-
                         <div class="care-card">
                             <div class="care-card-title">Current Advice</div>
-                            <p id="currentAdvice">Soil moisture is stable. Continue automatic monitoring.</p>
+                            <p id="currentAdvice">Monitoring environment...</p>
                         </div>
                     </div>
 
@@ -110,72 +101,40 @@
                                 </tr>
                             </thead>
                             <tbody id="careTableBody">
-                                <tr>
-                                    <td>09:15</td>
-                                    <td>Auto watering</td>
-                                    <td>Soil moisture below threshold</td>
-                                </tr>
-                                <tr>
-                                    <td>11:40</td>
-                                    <td>Shade deployed</td>
-                                    <td>Excessive light intensity</td>
-                                </tr>
-                                <tr>
-                                    <td>15:05</td>
-                                    <td>Fan activated</td>
-                                    <td>Temperature above threshold</td>
-                                </tr>
-                            </tbody>
+                                </tbody>
                         </table>
                     </div>
                 </section>
 
-                <!-- Chat -->
                 <section class="panel">
                     <h2>Chat with Your Plant</h2>
-
                     <div class="chat-box" id="chatBox">
                         <div class="chat-message plant">
                             Hi! I’m your Pothos. Thanks for checking on me today 🌿
                         </div>
-                        <div class="chat-message plant">
-                            My soil moisture looks okay right now, and I’m enjoying the light.
-                        </div>
                     </div>
-
                     <div class="chat-input-row">
                         <input type="text" id="chatInput" placeholder="Type a message to your plant..." />
-                        <button id="sendBtn">Send</button>
+                        <button onclick="sendMessage()">Send</button>
                     </div>
                 </section>
 
-                <!-- Time-lapse -->
                 <section class="panel">
                     <h2>Growth Time-lapse</h2>
-
                     <div class="timelapse-box">
                         <img src="plant_timelapse.gif" alt="Plant Growth Time-lapse" class="timelapse-gif" />
-
-                        <p class="timelapse-caption">
-                            Daily images captured by the camera are combined into a growth time-lapse sequence.
-                        </p>
+                        <p class="timelapse-caption">Daily images captured by the camera are combined into a growth time-lapse sequence.</p>
                     </div>
                 </section>
-                
             </div>
 
-            <!-- Right Column -->
             <div class="column">
-                <!-- AI Detection -->
                 <section class="panel">
                     <h2>AI Recognition & Health Analysis</h2>
                     <div class="plant-section">
                         <div class="image-box">
-                            <img id="plantImage"
-                                src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80"
-                                alt="Plant" />
+                            <img id="plantImage" src="https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=1200&q=80" alt="Plant" />
                         </div>
-
                         <div class="recognition-grid">
                             <div class="info-box">
                                 <h3>Plant Recognition</h3>
@@ -183,16 +142,13 @@
                                 <p><strong>Confidence:</strong> <span id="confidence">95%</span></p>
                                 <p><strong>Capture Source:</strong> Webcam</p>
                             </div>
-
                             <div class="info-box">
                                 <h3>Disease / Health Detection</h3>
                                 <p><strong>Status:</strong> <span id="healthStatus">Healthy</span></p>
                                 <p><strong>AI Output:</strong> <span id="diseaseClass">Healthy</span></p>
-                                <p><strong>Recommendation:</strong> <span id="recommendation">No action needed</span>
-                                </p>
+                                <p><strong>Recommendation:</strong> <span id="recommendation">No action needed</span></p>
                             </div>
                         </div>
-
                         <div class="button-group">
                             <button onclick="simulateHealthy()">Simulate Healthy</button>
                             <button onclick="simulateYellowing()">Simulate Yellowing</button>
@@ -201,35 +157,29 @@
                     </div>
                 </section>
 
-                <!-- Trend Chart -->
                 <section class="panel">
                     <h2>Growth & Care Trend</h2>
                     <div class="chart-controls">
-                        <button onclick="loadChart('soil')">Soil Moisture</button>
-                        <button onclick="loadChart('temperature')">Temperature</button>
-                        <button onclick="loadChart('light')">Light Intensity</button>
-                        <button onclick="loadChart('health')">Health Score</button>
+                        <button onclick="switchChartMetric('moisture')">Soil Moisture</button>
+                        <button onclick="switchChartMetric('temperature')">Temperature</button>
+                        <button onclick="switchChartMetric('light')">Light Intensity</button>
+                        <button onclick="switchChartMetric('humidity')">Humidity</button>
                     </div>
                     <div class="chart-box">
                         <canvas id="trendChart"></canvas>
                     </div>
                 </section>
 
-                <!-- AI Report -->
                 <section class="panel">
                     <h2>Weekly AI Report</h2>
                     <div class="report-box" id="weeklyReport">
-                        This week, the plant remained generally healthy. Soil moisture dropped below the threshold
-                        twice,
-                        triggering automatic watering. Light exposure was stable overall. No disease risk was detected.
-                        Recommendation: maintain the current watering schedule and continue automatic monitoring.
+                        Loading AI analysis...
                     </div>
                 </section>
             </div>
         </main>
     </div>
 
-    <script src="script.js?v=2"></script>
+    <script src="script.js"></script>
 </body>
-
 </html>

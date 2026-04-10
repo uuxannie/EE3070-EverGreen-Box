@@ -1,100 +1,274 @@
-const API_URL = "https://evergreen-box-backend.onrender.com/api/chat";
+// --- CONFIGURATION ---
+const API_BASE_URL = "https://evergreen-box-backend.onrender.com/api";
+const REFRESH_INTERVAL_MS = 10000;
+
+// --- STATE ---
+let globalHistoryData = [];
+let currentMetric = "moisture";
+let trendChart = null; 
 
 let todayWaterCount = 2;
 let todayLightCount = 1;
 let todayVentCount = 1;
 
+// Removed mock chart arrays, keeping profile info
 const plantData = {
     cactus: {
         name: "Cactus",
         confidence: "96%",
-        image:
-            "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2023/003/16489908-remodeledcactusicon_l.webp",
-        personality: "calm and a little aloof",
-        greeting:
-            "Hello, I’m your Cactus. I prefer dry soil and a bit of personal space 🌵",
-        report:
-            "This week, the cactus remained stable. Soil moisture stayed mostly within the preferred low range. No major disease risk was detected. Recommendation: avoid overwatering and maintain good light exposure.",
-        advice:
-            "Cactus prefers less frequent watering. Keep soil relatively dry between waterings.",
-        chart: {
-            soil: [22, 25, 21, 24, 20, 23, 21],
-            temperature: [26, 27, 27, 28, 27, 26, 27],
-            light: [720, 750, 710, 770, 760, 740, 735],
-            health: [92, 93, 92, 94, 93, 94, 95]
-        }
+        image: "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2023/003/16489908-remodeledcactusicon_l.webp",
+        report: "This week, the cactus remained stable. Soil moisture stayed mostly within the preferred low range. Recommendation: avoid overwatering."
     },
     succulent: {
         name: "Succulent",
         confidence: "94%",
-        image:
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZ5mV5N0Kt81Lv7CzONjqdBbQkeS-fSY374w&s",
-        personality: "gentle and easygoing",
-        greeting:
-            "Hi, I’m your Succulent. I like bright light and careful watering 🌱",
-        report:
-            "This week, the succulent remained healthy overall. Light levels were stable, and only one mild drop in soil moisture triggered watering. Recommendation: continue moderate watering and ensure sufficient sunlight.",
-        advice:
-            "Succulent likes bright light and moderate watering. Avoid soggy soil.",
-        chart: {
-            soil: [36, 39, 34, 37, 33, 35, 38],
-            temperature: [24, 25, 25, 26, 25, 24, 25],
-            light: [610, 650, 620, 670, 640, 630, 645],
-            health: [90, 91, 92, 92, 91, 93, 93]
-        }
+        image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZ5mV5N0Kt81Lv7CzONjqdBbQkeS-fSY374w&s",
+        report: "This week, the succulent remained healthy overall. Light levels were stable. Recommendation: continue moderate watering."
     },
     pothos: {
         name: "Pothos",
         confidence: "95%",
-        image:
-            "https://www.guide-to-houseplants.com/images/golden-pothos.jpg",
-        personality: "friendly and talkative",
-        greeting:
-            "Hi! I’m your Pothos. Thanks for checking on me today 🌿",
-        report:
-            "This week, the pothos remained generally healthy. Soil moisture dropped below the threshold twice, triggering automatic watering. Light exposure was stable overall. No disease risk was detected. Recommendation: maintain the current watering schedule and continue automatic monitoring.",
-        advice:
-            "Pothos enjoys steady moisture and indirect light. Keep the environment stable.",
-        chart: {
-            soil: [42, 45, 40, 43, 38, 41, 44],
-            temperature: [24, 25, 25, 26, 24, 25, 25],
-            light: [480, 520, 500, 540, 510, 495, 525],
-            health: [88, 89, 90, 91, 89, 90, 92]
-        }
+        image: "https://www.guide-to-houseplants.com/images/golden-pothos.jpg",
+        report: "This week, the pothos remained generally healthy. Recommendation: maintain the current watering schedule and continue automatic monitoring."
     }
 };
 
-const labels = ["Day 1", "Day 2", "Day 3", "Day 4", "Day 5", "Day 6", "Day 7"];
-let trendChart;
-let currentMetric = "soil";
+// --- INITIALIZATION ---
+window.addEventListener('DOMContentLoaded', async () => {
+    initChart();
+    changePlant(); // Setup initial plant profile
+    
+    // Initial fetch
+    await fetchSensorHistory();
+    await fetchLatestSensorData();
 
-function getCurrentTime() {
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, "0");
-    const minutes = String(now.getMinutes()).padStart(2, "0");
-    return `${hours}:${minutes}`;
+    // Start polling
+    setInterval(fetchLatestSensorData, REFRESH_INTERVAL_MS);
+});
+
+
+// --- DATA FETCHING (Separated from DOM) ---
+
+async function fetchLatestSensorData() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/sensor/latest`);
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        
+        const data = await response.json();
+        updateEnvironmentUI(data);
+        updateSystemStatus("Online & Monitoring", "healthy");
+    } catch (error) {
+        console.error("Failed to fetch latest sensor data:", error);
+        updateEnvironmentUI(null); // Trigger fallback UI
+        updateSystemStatus("Backend Unavailable", "alert");
+    }
+}
+
+async function fetchSensorHistory() {
+    try {
+        // Assumption: endpoint exists based on prompt requirements
+        const response = await fetch(`${API_BASE_URL}/sensor/history`);
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+            globalHistoryData = data;
+            updateChartData();
+        }
+    } catch (error) {
+        console.error("Failed to fetch sensor history:", error);
+        // Do not fabricate data. Chart will remain empty.
+    }
+}
+
+// --- DOM UPDATES ---
+
+function updateEnvironmentUI(data) {
+    const tempEl = document.getElementById("temperature");
+    const humEl = document.getElementById("humidity");
+    const soilEl = document.getElementById("soilMoisture");
+    const lightEl = document.getElementById("lightLevel");
+
+    if (!data) {
+        // Fallback state
+        tempEl.textContent = "--°C";
+        humEl.textContent = "--%";
+        soilEl.textContent = "--%";
+        lightEl.textContent = "-- lux";
+        return;
+    }
+
+    // Defensive reading using nullish coalescing in case backend misses a field
+    tempEl.textContent = data.temperature != null ? `${data.temperature}°C` : "--°C";
+    humEl.textContent = data.humidity != null ? `${data.humidity}%` : "--%";
+    soilEl.textContent = data.moisture != null ? `${data.moisture}%` : "--%";
+    lightEl.textContent = data.light != null ? `${data.light} lux` : "-- lux";
 }
 
 function updateSystemStatus(text, type = "healthy") {
     const status = document.getElementById("systemStatus");
     status.textContent = `System Status: ${text}`;
-    status.classList.remove("warning", "alert");
+    status.className = "system-status"; // Reset
+    if (type !== "healthy") status.classList.add(type);
+}
 
-    if (type === "warning") {
-        status.classList.add("warning");
-    } else if (type === "alert") {
-        status.classList.add("alert");
+// --- CHART LOGIC (Robust & Stable) ---
+
+function initChart() {
+    const ctx = document.getElementById("trendChart").getContext("2d");
+    trendChart = new Chart(ctx, {
+        type: "line",
+        data: {
+            labels: [], 
+            datasets: [{
+                label: "Loading...",
+                data: [],
+                tension: 0.3,
+                fill: false,
+                borderColor: '#2e7d32' 
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } }
+        }
+    });
+}
+
+function switchChartMetric(metric) {
+    currentMetric = metric;
+    updateChartData();
+}
+
+function updateChartData() {
+    if (!trendChart || globalHistoryData.length === 0) return;
+
+    const plantKey = document.getElementById("plantSelect").value;
+    const plantName = plantData[plantKey].name;
+
+    // Parse timestamps for readable x-axis (e.g., "11:40")
+    const newLabels = globalHistoryData.map(row => {
+        if (!row.timestamp) return "Unknown";
+        const dateObj = new Date(row.timestamp);
+        return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+    });
+
+    // Map the selected metric data
+    const newData = globalHistoryData.map(row => row[currentMetric] || 0);
+
+    // Label formatting
+    let metricLabel = currentMetric.charAt(0).toUpperCase() + currentMetric.slice(1);
+    if (currentMetric === "moisture") metricLabel = "Soil Moisture";
+
+    // Update existing chart instance instead of destroying it
+    trendChart.data.labels = newLabels;
+    trendChart.data.datasets[0].label = `${plantName} - ${metricLabel}`;
+    trendChart.data.datasets[0].data = newData;
+    trendChart.update();
+}
+
+// --- CHAT LOGIC ---
+
+async function sendMessage() {
+    const input = document.getElementById("chatInput");
+    const chatBox = document.getElementById("chatBox");
+    const text = input.value.trim();
+    if (!text) return;
+
+    // 1. Render user message
+    const userMsg = document.createElement("div");
+    userMsg.className = "chat-message user";
+    userMsg.innerText = text;
+    chatBox.appendChild(userMsg);
+    input.value = "";
+
+    // 2. Render loading
+    const loadingMsg = document.createElement("div");
+    loadingMsg.className = "chat-message plant";
+    loadingMsg.innerText = "🌱 thinking...";
+    chatBox.appendChild(loadingMsg);
+    chatBox.scrollTop = chatBox.scrollHeight;
+
+    // 3. Gather context
+    const plantKey = document.getElementById("plantSelect").value;
+    const plantName = plantData[plantKey].name;
+    const soil = document.getElementById("soilMoisture").textContent;
+    const temp = document.getElementById("temperature").textContent;
+    const humidity = document.getElementById("humidity").textContent;
+    const disease = document.getElementById("diseaseClass").textContent;
+
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+        // Assumes main.py's ai.router handles the chat logic under /api/chat
+        const response = await fetch(`${API_BASE_URL}/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                message: `User message: ${text}\nPlant info: Name: ${plantName}, Soil: ${soil}, Temp: ${temp}, Hum: ${humidity}, Health: ${disease}`
+            }),
+            signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+        const data = await response.json();
+        
+        chatBox.removeChild(loadingMsg);
+        const plantMsg = document.createElement("div");
+        plantMsg.className = "chat-message plant";
+        plantMsg.textContent = data.reply || data.error || "No valid reply returned.";
+        chatBox.appendChild(plantMsg);
+
+    } catch (error) {
+        console.error("Chat fetch error:", error);
+        chatBox.removeChild(loadingMsg);
+        const plantMsg = document.createElement("div");
+        plantMsg.className = "chat-message plant";
+
+        if (error.name === "AbortError") {
+            plantMsg.textContent = "⚠️ The backend took too long to respond. It might be waking up.";
+        } else {
+            plantMsg.textContent = "⚠️ Cannot reach the backend. Please check your connection.";
+        }
+        chatBox.appendChild(plantMsg);
     }
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+document.getElementById("chatInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendMessage();
+});
+
+
+// --- UI / MANUAL CONTROLS (Kept mostly as-is, minimal cleanups) ---
+
+function changePlant() {
+    const selectEl = document.getElementById("plantSelect");
+    const selected = selectEl.value;
+    const data = plantData[selected];
+
+    document.getElementById("plantType").textContent = data.name;
+    document.getElementById("confidence").textContent = data.confidence;
+    document.getElementById("plantImage").src = data.image;
+    document.getElementById("weeklyReport").textContent = data.report;
+    
+    // Refresh chart titles automatically
+    updateChartData();
+}
+
+function getCurrentTime() {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 
 function addCareRecord(action, trigger) {
     const tableBody = document.getElementById("careTableBody");
     const row = document.createElement("tr");
-    row.innerHTML = `
-    <td>${getCurrentTime()}</td>
-    <td>${action}</td>
-    <td>${trigger}</td>
-  `;
+    row.innerHTML = `<td>${getCurrentTime()}</td><td>${action}</td><td>${trigger}</td>`;
     tableBody.prepend(row);
 }
 
@@ -108,71 +282,29 @@ function refreshSummaryCounts() {
 
 function waterPlant() {
     todayWaterCount++;
-    document.getElementById("soilMoisture").textContent = "55%";
-    document.getElementById("currentAdvice").textContent =
-        "Watering completed. Soil moisture has improved.";
-    document.getElementById("recommendation").textContent =
-        "Moisture restored. Continue monitoring.";
+    document.getElementById("currentAdvice").textContent = "Watering completed manually.";
     addCareRecord("Manual watering", "User command");
-    updateSystemStatus("Watering completed", "healthy");
     refreshSummaryCounts();
 }
 
 function turnOnLight() {
     todayLightCount++;
-    document.getElementById("lightLevel").textContent = "760 lux";
-    document.getElementById("currentAdvice").textContent =
-        "Supplemental light activated to improve light exposure.";
+    document.getElementById("currentAdvice").textContent = "Supplemental light activated.";
     addCareRecord("Manual light on", "User command");
-    updateSystemStatus("Supplemental lighting active", "healthy");
     refreshSummaryCounts();
 }
 
 function turnOnFan() {
     todayVentCount++;
-    document.getElementById("temperature").textContent = "24°C";
-    document.getElementById("currentAdvice").textContent =
-        "Ventilation started to reduce temperature and improve airflow.";
+    document.getElementById("currentAdvice").textContent = "Ventilation started manually.";
     addCareRecord("Manual fan on", "User command");
-    updateSystemStatus("Ventilation active", "healthy");
     refreshSummaryCounts();
 }
 
 function simulateAutoCare() {
-    const actions = [
-        {
-            action: "Auto watering",
-            trigger: "Soil moisture below threshold",
-            advice: "Automatic watering triggered due to dry soil."
-        },
-        {
-            action: "Shade deployed",
-            trigger: "Excessive light intensity",
-            advice: "Shading activated to protect the plant from excessive light."
-        },
-        {
-            action: "Fan activated",
-            trigger: "Temperature above threshold",
-            advice: "Ventilation started automatically due to high temperature."
-        }
-    ];
-
-    const pick = actions[Math.floor(Math.random() * actions.length)];
-
-    if (pick.action.includes("watering")) {
-        todayWaterCount++;
-        document.getElementById("soilMoisture").textContent = "50%";
-    } else if (pick.action.includes("Shade")) {
-        todayLightCount++;
-        document.getElementById("lightLevel").textContent = "430 lux";
-    } else {
-        todayVentCount++;
-        document.getElementById("temperature").textContent = "24°C";
-    }
-
-    document.getElementById("currentAdvice").textContent = pick.advice;
-    addCareRecord(pick.action, pick.trigger);
-    updateSystemStatus("Automatic care action executed", "healthy");
+    todayWaterCount++;
+    document.getElementById("currentAdvice").textContent = "Simulated Auto Care executed.";
+    addCareRecord("Auto Care (Sim)", "Timer/Threshold");
     refreshSummaryCounts();
 }
 
@@ -180,221 +312,16 @@ function simulateHealthy() {
     document.getElementById("healthStatus").textContent = "Healthy";
     document.getElementById("diseaseClass").textContent = "Healthy";
     document.getElementById("recommendation").textContent = "No action needed";
-    document.getElementById("currentAdvice").textContent =
-        "AI indicates healthy appearance. Continue current care plan.";
-    updateSystemStatus("Healthy", "healthy");
 }
 
 function simulateYellowing() {
     document.getElementById("healthStatus").textContent = "Warning";
     document.getElementById("diseaseClass").textContent = "Yellowing";
-    document.getElementById("recommendation").textContent =
-        "Possible nutrient/light issue. Inspect watering and light conditions.";
-    document.getElementById("currentAdvice").textContent =
-        "AI detected yellowing. Check light level and watering balance.";
-    addCareRecord("AI warning issued", "Yellowing detected from webcam");
-    updateSystemStatus("Yellowing detected", "warning");
+    document.getElementById("recommendation").textContent = "Inspect watering conditions.";
 }
 
 function simulateRotRisk() {
     document.getElementById("healthStatus").textContent = "Alert";
     document.getElementById("diseaseClass").textContent = "Dark-spot / Rot risk";
-    document.getElementById("recommendation").textContent =
-        "Reduce watering and improve ventilation. Inspect for fungal infection.";
-    document.getElementById("currentAdvice").textContent =
-        "AI detected possible rot risk. Reduce moisture and improve airflow.";
-    addCareRecord("AI alert issued", "Dark-spot / Rot risk detected");
-    updateSystemStatus("Disease risk detected", "alert");
+    document.getElementById("recommendation").textContent = "Reduce watering and improve ventilation.";
 }
-
-function changePlant() {
-    const selectEl = document.getElementById("plantSelect");
-    const plantTypeEl = document.getElementById("plantType");
-    const confidenceEl = document.getElementById("confidence");
-    const plantImageEl = document.getElementById("plantImage");
-    const weeklyReportEl = document.getElementById("weeklyReport");
-
-    if (!selectEl || !plantTypeEl || !confidenceEl || !plantImageEl || !weeklyReportEl) {
-        console.log("changePlant skipped: required elements not found");
-        return;
-    }
-
-    const selected = selectEl.value;
-    const data = plantData[selected];
-
-    plantTypeEl.textContent = data.name;
-    confidenceEl.textContent = data.confidence;
-    plantImageEl.src = data.image;
-    weeklyReportEl.textContent = data.report;
-}
-
-function getCurrentPlantKey() {
-    return document.getElementById("plantSelect").value;
-}
-
-function getMetricLabel(metric) {
-    if (metric === "soil") return "Soil Moisture";
-    if (metric === "temperature") return "Temperature";
-    if (metric === "light") return "Light Intensity";
-    return "Health Score";
-}
-
-function loadChart(metric) {
-    currentMetric = metric;
-    const plantKey = getCurrentPlantKey();
-    const data = plantData[plantKey].chart[metric];
-    const label = getMetricLabel(metric);
-
-    if (trendChart) {
-        trendChart.destroy();
-    }
-
-    const ctx = document.getElementById("trendChart").getContext("2d");
-    trendChart = new Chart(ctx, {
-        type: "line",
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: `${plantData[plantKey].name} - ${label}`,
-                    data: data,
-                    tension: 0.3,
-                    fill: false
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: true
-                }
-            }
-        }
-    });
-}
-
-let isSending = false;
-
-async function sendMessage() {
-    if (isSending) return;
-
-    const input = document.getElementById("chatInput");
-    const chatBox = document.getElementById("chatBox");
-    const sendBtn = document.getElementById("sendBtn");
-
-    const text = input.value.trim();
-    if (!text) return;
-
-    isSending = true;
-    input.disabled = true;
-    if (sendBtn) {
-        sendBtn.disabled = true;
-        sendBtn.textContent = "Sending...";
-    }
-
-    // 1. 渲染用户的消息
-    const userMsg = document.createElement("div");
-    userMsg.className = "chat-message user";
-    userMsg.innerText = text;
-    chatBox.appendChild(userMsg);
-
-    input.value = "";
-
-    // 2. 显示加载中状态
-    const loadingMsg = document.createElement("div");
-    loadingMsg.className = "chat-message plant";
-    loadingMsg.innerText = "🌱 thinking...";
-    chatBox.appendChild(loadingMsg);
-    chatBox.scrollTop = chatBox.scrollHeight;
-
-    // 3. 获取当前植物的环境数据
-    const plantKey = getCurrentPlantKey();
-    const plantName = plantData[plantKey].name;
-    const soil = document.getElementById("soilMoisture").textContent;
-    const temp = document.getElementById("temperature").textContent;
-    const humidity = document.getElementById("humidity").textContent;
-    const disease = document.getElementById("diseaseClass").textContent;
-
-    // 4. 发送请求给 FastAPI
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-            controller.abort();
-        }, 20000); // 改成20秒更稳一点
-
-        console.log("Sending request to:", API_URL);
-
-        const response = await fetch(API_URL, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                message: `User message: ${text}\n\nPlant info:\nName: ${plantName}\nSoil moisture: ${soil}\nTemperature: ${temp}\nHumidity: ${humidity}\nHealth: ${disease}`
-            }),
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        console.log("Response data:", data);
-
-        if (loadingMsg.parentNode) {
-            chatBox.removeChild(loadingMsg);
-        }
-
-        const plantMsg = document.createElement("div");
-        plantMsg.className = "chat-message plant";
-        plantMsg.textContent = data.reply || data.error || "No valid reply returned.";
-        chatBox.appendChild(plantMsg);
-
-    } catch (error) {
-        console.error("Fetch error:", error);
-
-        if (loadingMsg.parentNode) {
-            chatBox.removeChild(loadingMsg);
-        }
-
-        const plantMsg = document.createElement("div");
-        plantMsg.className = "chat-message plant";
-
-        if (error.name === "AbortError") {
-            plantMsg.textContent = "⚠️ The backend took too long to respond.";
-        } else if (String(error).includes("Failed to fetch")) {
-            plantMsg.textContent = "⚠️ Cannot reach the backend. Please check if FastAPI is running.";
-        } else {
-            plantMsg.textContent = "⚠️ Connection error. Please try again.";
-        }
-
-        chatBox.appendChild(plantMsg);
-    } finally {
-        isSending = false;
-        input.disabled = false;
-        input.focus();
-
-        if (sendBtn) {
-            sendBtn.disabled = false;
-            sendBtn.textContent = "Send";
-        }
-
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-}
-
-// press button to send message
-document.getElementById("sendBtn").addEventListener("click", sendMessage);
-
-// press enter to send message
-document.getElementById("chatInput").addEventListener("keypress", function (e) {
-    if (e.key === "Enter") {
-        e.preventDefault();
-        sendMessage();
-    }
-});
