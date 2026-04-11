@@ -1,174 +1,253 @@
-// --- CONFIGURATION ---
+// ==========================================
+// 1. CONFIGURATION & STATE MANAGEMENT
+// ==========================================
 const API_BASE_URL = "https://evergreen-box-backend.onrender.com/api";
 const REFRESH_INTERVAL_MS = 10000;
 
-// --- STATE ---
-let globalHistoryData = [];
-let currentMetric = "moisture";
-let trendChart = null; 
+// Centralized Application State (Single Source of Truth)
+const appState = {
+    status: "Connecting...",
+    statusType: "alert", // 'healthy', 'warning', 'alert'
+    sensor: {
+        temperature: null,
+        humidity: null,
+        moisture: null,
+        light: null
+    },
+    deviceStats: {
+        water_pump: 0,
+        grow_light: 0,
+        fan: 0
+    },
+    history: [],
+    chartMetric: "moisture",
+    activePlant: null
+};
 
-let todayWaterCount = 2;
-let todayLightCount = 1;
-let todayVentCount = 1;
-
-// Removed mock chart arrays, keeping profile info
-const plantData = {
+// Fallback plant profiles (Ideally, fetch these from /api/plants in the future)
+const plantProfiles = {
     cactus: {
-        name: "Cactus",
-        confidence: "96%",
+        name: "Cactus", confidence: "96%",
         image: "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2023/003/16489908-remodeledcactusicon_l.webp",
         report: "This week, the cactus remained stable. Soil moisture stayed mostly within the preferred low range. Recommendation: avoid overwatering."
     },
     succulent: {
-        name: "Succulent",
-        confidence: "94%",
+        name: "Succulent", confidence: "94%",
         image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZ5mV5N0Kt81Lv7CzONjqdBbQkeS-fSY374w&s",
         report: "This week, the succulent remained healthy overall. Light levels were stable. Recommendation: continue moderate watering."
     },
     pothos: {
-        name: "Pothos",
-        confidence: "95%",
+        name: "Pothos", confidence: "95%",
         image: "https://www.guide-to-houseplants.com/images/golden-pothos.jpg",
         report: "This week, the pothos remained generally healthy. Recommendation: maintain the current watering schedule and continue automatic monitoring."
     }
 };
 
-// --- INITIALIZATION ---
-window.addEventListener('DOMContentLoaded', async () => {
-    initChart();
-    changePlant(); // Setup initial plant profile
+let trendChart = null; // Chart.js instance
+
+// ==========================================
+// 2. DRY API LAYER
+// ==========================================
+
+/**
+ * Generic fetch wrapper to eliminate try/catch repetition.
+ */
+async function apiCall(endpoint, method = "GET", body = null) {
+    const options = { method, headers: {} };
+    if (body) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(body);
+    }
     
-    // Initial fetch
-    await fetchSensorHistory();
-    await fetchLatestSensorData();
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+    if (!response.ok) throw new Error(`API Error: ${response.status}`);
+    return response.json();
+}
 
-    // Start polling
-    setInterval(fetchLatestSensorData, REFRESH_INTERVAL_MS);
-});
-
-
-// --- DATA FETCHING (Separated from DOM) ---
-
-async function fetchLatestSensorData() {
+async function fetchAllData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/sensor/latest`);
-        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        const [latest, history, stats] = await Promise.all([
+            apiCall("/sensor/latest"),
+            apiCall("/sensor/history"),
+            apiCall("/device/stats") // Assumes you added the device stats endpoint
+        ]);
+
+        appState.sensor = latest;
+        appState.history = Array.isArray(history) ? history : [];
+        appState.deviceStats = stats || appState.deviceStats;
         
-        const data = await response.json();
-        updateEnvironmentUI(data);
-        updateSystemStatus("Online & Monitoring", "healthy");
+        setSystemStatus("Online & Monitoring", "healthy");
     } catch (error) {
-        console.error("Failed to fetch latest sensor data:", error);
-        updateEnvironmentUI(null); // Trigger fallback UI
-        updateSystemStatus("Backend Unavailable", "alert");
+        console.error("Data synchronization failed:", error);
+        setSystemStatus("Backend Unavailable", "alert");
+    } finally {
+        renderAll();
     }
 }
 
-async function fetchSensorHistory() {
+async function executeDeviceCommand(target, action, successMsg) {
+    setSystemStatus(`Sending command to ${target}...`, "warning");
+    renderSystemStatus();
+
     try {
-        // Assumption: endpoint exists based on prompt requirements
-        const response = await fetch(`${API_BASE_URL}/sensor/history`);
-        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        await apiCall("/device/command", "POST", { target, action });
         
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-            globalHistoryData = data;
-            updateChartData();
-        }
+        document.getElementById("currentAdvice").textContent = successMsg;
+        addCareRecord(`Manual ${target.replace('_', ' ')}`, "User command");
+        setSystemStatus("Command executed successfully", "healthy");
+        
+        // Re-sync stats after an action
+        const stats = await apiCall("/device/stats");
+        appState.deviceStats = stats || appState.deviceStats;
+        
     } catch (error) {
-        console.error("Failed to fetch sensor history:", error);
-        // Do not fabricate data. Chart will remain empty.
+        console.error(`${target} command failed:`, error);
+        setSystemStatus(`Failed to communicate with ${target}`, "alert");
+        document.getElementById("currentAdvice").textContent = "Error: Could not send command to the greenhouse.";
+    } finally {
+        renderAll();
     }
 }
 
-// --- DOM UPDATES ---
+// ==========================================
+// 3. STATE MUTATORS & EVENT HANDLERS
+// ==========================================
 
-function updateEnvironmentUI(data) {
-    const tempEl = document.getElementById("temperature");
-    const humEl = document.getElementById("humidity");
-    const soilEl = document.getElementById("soilMoisture");
-    const lightEl = document.getElementById("lightLevel");
+function setSystemStatus(message, type) {
+    appState.status = message;
+    appState.statusType = type;
+}
 
-    if (!data) {
-        // Fallback state
-        tempEl.textContent = "--°C";
-        humEl.textContent = "--%";
-        soilEl.textContent = "--%";
-        lightEl.textContent = "-- lux";
-        return;
+function changePlant() {
+    const selected = document.getElementById("plantSelect").value;
+    appState.activePlant = plantProfiles[selected];
+    renderPlantProfile();
+    updateChart();
+}
+
+function switchChartMetric(metric) {
+    appState.chartMetric = metric;
+    updateChart();
+}
+
+// Hardware Triggers (Mapped to actual backend routes)
+const waterPlant = () => executeDeviceCommand("water_pump", "on", "Watering sequence initiated. Soil moisture should improve soon.");
+const turnOnLight = () => executeDeviceCommand("grow_light", "on", "Supplemental light activated for optimal photosynthesis.");
+const turnOnFan = () => executeDeviceCommand("fan", "on", "Ventilation started to regulate temperature and airflow.");
+
+// Simulation helpers (For UI testing without backend action)
+function simulateAutoCare() {
+    addCareRecord("Auto Care (Sim)", "Timer/Threshold");
+    document.getElementById("currentAdvice").textContent = "Simulated Auto Care executed.";
+}
+
+function updateHealthSimulation(status, diseaseClass, recommendation, type) {
+    document.getElementById("healthStatus").textContent = status;
+    document.getElementById("diseaseClass").textContent = diseaseClass;
+    document.getElementById("recommendation").textContent = recommendation;
+    setSystemStatus(status === "Healthy" ? "Healthy" : `${diseaseClass} detected`, type);
+    renderSystemStatus();
+}
+
+const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
+const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
+const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
+
+
+// ==========================================
+// 4. CLEAN DOM RENDERING
+// ==========================================
+
+function renderAll() {
+    renderSystemStatus();
+    renderEnvironment();
+    renderDeviceStats();
+    updateChart();
+}
+
+function renderSystemStatus() {
+    const statusEl = document.getElementById("systemStatus");
+    statusEl.textContent = `System Status: ${appState.status}`;
+    statusEl.className = "system-status"; 
+    if (appState.statusType !== "healthy") {
+        statusEl.classList.add(appState.statusType);
     }
-
-    // Defensive reading using nullish coalescing in case backend misses a field
-    tempEl.textContent = data.temperature != null ? `${data.temperature}°C` : "--°C";
-    humEl.textContent = data.humidity != null ? `${data.humidity}%` : "--%";
-    soilEl.textContent = data.moisture != null ? `${data.moisture}%` : "--%";
-    lightEl.textContent = data.light != null ? `${data.light} lux` : "-- lux";
 }
 
-function updateSystemStatus(text, type = "healthy") {
-    const status = document.getElementById("systemStatus");
-    status.textContent = `System Status: ${text}`;
-    status.className = "system-status"; // Reset
-    if (type !== "healthy") status.classList.add(type);
+function renderEnvironment() {
+    const { temperature, humidity, moisture, light } = appState.sensor;
+    
+    document.getElementById("temperature").textContent = temperature != null ? `${temperature}°C` : "--°C";
+    document.getElementById("humidity").textContent = humidity != null ? `${humidity}%` : "--%";
+    document.getElementById("soilMoisture").textContent = moisture != null ? `${moisture}%` : "--%";
+    document.getElementById("lightLevel").textContent = light != null ? `${light} lux` : "-- lux";
 }
 
-// --- CHART LOGIC (Robust & Stable) ---
+function renderDeviceStats() {
+    const stats = appState.deviceStats;
+    
+    // Overview Cards
+    document.getElementById("todayWater").textContent = stats.water_pump || 0;
+    document.getElementById("todayLight").textContent = stats.grow_light || 0;
+    document.getElementById("todayVent").textContent = stats.fan || 0;
+
+    // Mini Summary
+    document.getElementById("wateringCount").textContent = `${stats.water_pump || 0} times`;
+    const fanCount = stats.fan || 0;
+    document.getElementById("fanCount").textContent = `${fanCount} time${fanCount !== 1 ? "s" : ""}`;
+}
+
+function renderPlantProfile() {
+    if (!appState.activePlant) return;
+    const p = appState.activePlant;
+    
+    document.getElementById("plantType").textContent = p.name;
+    document.getElementById("confidence").textContent = p.confidence;
+    document.getElementById("plantImage").src = p.image;
+    document.getElementById("weeklyReport").textContent = p.report;
+}
+
+function addCareRecord(action, trigger) {
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+    
+    const tableBody = document.getElementById("careTableBody");
+    const row = document.createElement("tr");
+    row.innerHTML = `<td>${timeStr}</td><td>${action}</td><td>${trigger}</td>`;
+    tableBody.prepend(row);
+}
+
+// ==========================================
+// 5. CHART & CHAT LOGIC
+// ==========================================
 
 function initChart() {
     const ctx = document.getElementById("trendChart").getContext("2d");
     trendChart = new Chart(ctx, {
         type: "line",
-        data: {
-            labels: [], 
-            datasets: [{
-                label: "Loading...",
-                data: [],
-                tension: 0.3,
-                fill: false,
-                borderColor: '#2e7d32' 
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { display: true } }
-        }
+        data: { labels: [], datasets: [{ label: "Loading...", data: [], tension: 0.3, fill: false, borderColor: '#2e7d32' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } }
     });
 }
 
-function switchChartMetric(metric) {
-    currentMetric = metric;
-    updateChartData();
-}
+function updateChart() {
+    if (!trendChart || appState.history.length === 0 || !appState.activePlant) return;
 
-function updateChartData() {
-    if (!trendChart || globalHistoryData.length === 0) return;
-
-    const plantKey = document.getElementById("plantSelect").value;
-    const plantName = plantData[plantKey].name;
-
-    // Parse timestamps for readable x-axis (e.g., "11:40")
-    const newLabels = globalHistoryData.map(row => {
+    const metric = appState.chartMetric;
+    const labels = appState.history.map(row => {
         if (!row.timestamp) return "Unknown";
-        const dateObj = new Date(row.timestamp);
-        return `${String(dateObj.getHours()).padStart(2, '0')}:${String(dateObj.getMinutes()).padStart(2, '0')}`;
+        const d = new Date(row.timestamp);
+        return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     });
 
-    // Map the selected metric data
-    const newData = globalHistoryData.map(row => row[currentMetric] || 0);
+    const dataPoints = appState.history.map(row => row[metric] || 0);
+    const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1).replace("moisture", "Soil Moisture");
 
-    // Label formatting
-    let metricLabel = currentMetric.charAt(0).toUpperCase() + currentMetric.slice(1);
-    if (currentMetric === "moisture") metricLabel = "Soil Moisture";
-
-    // Update existing chart instance instead of destroying it
-    trendChart.data.labels = newLabels;
-    trendChart.data.datasets[0].label = `${plantName} - ${metricLabel}`;
-    trendChart.data.datasets[0].data = newData;
+    trendChart.data.labels = labels;
+    trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
+    trendChart.data.datasets[0].data = dataPoints;
     trendChart.update();
 }
-
-// --- CHAT LOGIC ---
 
 async function sendMessage() {
     const input = document.getElementById("chatInput");
@@ -176,65 +255,29 @@ async function sendMessage() {
     const text = input.value.trim();
     if (!text) return;
 
-    // 1. Render user message
-    const userMsg = document.createElement("div");
-    userMsg.className = "chat-message user";
-    userMsg.innerText = text;
-    chatBox.appendChild(userMsg);
+    // Render User Message
+    chatBox.innerHTML += `<div class="chat-message user">${text}</div>`;
     input.value = "";
 
-    // 2. Render loading
-    const loadingMsg = document.createElement("div");
-    loadingMsg.className = "chat-message plant";
-    loadingMsg.innerText = "🌱 thinking...";
-    chatBox.appendChild(loadingMsg);
+    // Render Loading
+    const loadingId = "loading-" + Date.now();
+    chatBox.innerHTML += `<div class="chat-message plant" id="${loadingId}">🌱 thinking...</div>`;
     chatBox.scrollTop = chatBox.scrollHeight;
 
-    // 3. Gather context
-    const plantKey = document.getElementById("plantSelect").value;
-    const plantName = plantData[plantKey].name;
-    const soil = document.getElementById("soilMoisture").textContent;
-    const temp = document.getElementById("temperature").textContent;
-    const humidity = document.getElementById("humidity").textContent;
-    const disease = document.getElementById("diseaseClass").textContent;
+    // Construct Context strictly from appState, not by scraping the DOM
+    const contextStr = `Name: ${appState.activePlant?.name || 'Unknown'}, Soil: ${appState.sensor.moisture}%, Temp: ${appState.sensor.temperature}°C, Hum: ${appState.sensor.humidity}%`;
 
     try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-        // Assumes main.py's ai.router handles the chat logic under /api/chat
-        const response = await fetch(`${API_BASE_URL}/chat`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                message: `User message: ${text}\nPlant info: Name: ${plantName}, Soil: ${soil}, Temp: ${temp}, Hum: ${humidity}, Health: ${disease}`
-            }),
-            signal: controller.signal
+        const data = await apiCall("/chat", "POST", {
+            message: `User message: ${text}\nPlant info: ${contextStr}`
         });
-
-        clearTimeout(timeoutId);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-        const data = await response.json();
         
-        chatBox.removeChild(loadingMsg);
-        const plantMsg = document.createElement("div");
-        plantMsg.className = "chat-message plant";
-        plantMsg.textContent = data.reply || data.error || "No valid reply returned.";
-        chatBox.appendChild(plantMsg);
-
+        document.getElementById(loadingId).remove();
+        chatBox.innerHTML += `<div class="chat-message plant">${data.reply || data.error || "No valid reply returned."}</div>`;
     } catch (error) {
         console.error("Chat fetch error:", error);
-        chatBox.removeChild(loadingMsg);
-        const plantMsg = document.createElement("div");
-        plantMsg.className = "chat-message plant";
-
-        if (error.name === "AbortError") {
-            plantMsg.textContent = "⚠️ The backend took too long to respond. It might be waking up.";
-        } else {
-            plantMsg.textContent = "⚠️ Cannot reach the backend. Please check your connection.";
-        }
-        chatBox.appendChild(plantMsg);
+        document.getElementById(loadingId).remove();
+        chatBox.innerHTML += `<div class="chat-message plant">⚠️ Cannot reach the AI. Please check your connection.</div>`;
     }
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -243,85 +286,29 @@ document.getElementById("chatInput").addEventListener("keypress", (e) => {
     if (e.key === "Enter") sendMessage();
 });
 
-
-// --- UI / MANUAL CONTROLS (Kept mostly as-is, minimal cleanups) ---
-
-function changePlant() {
-    const selectEl = document.getElementById("plantSelect");
-    const selected = selectEl.value;
-    const data = plantData[selected];
-
-    document.getElementById("plantType").textContent = data.name;
-    document.getElementById("confidence").textContent = data.confidence;
-    document.getElementById("plantImage").src = data.image;
-    document.getElementById("weeklyReport").textContent = data.report;
+// ==========================================
+// 6. BOOTSTRAP
+// ==========================================
+window.addEventListener('DOMContentLoaded', async () => {
+    initChart();
     
-    // Refresh chart titles automatically
-    updateChartData();
-}
+    // Set initial active plant before fetching data
+    document.getElementById("plantSelect").value = "pothos"; 
+    changePlant(); 
+    
+    // Initial fetch of all real data
+    await fetchAllData();
 
-function getCurrentTime() {
-    const now = new Date();
-    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-}
-
-function addCareRecord(action, trigger) {
-    const tableBody = document.getElementById("careTableBody");
-    const row = document.createElement("tr");
-    row.innerHTML = `<td>${getCurrentTime()}</td><td>${action}</td><td>${trigger}</td>`;
-    tableBody.prepend(row);
-}
-
-function refreshSummaryCounts() {
-    document.getElementById("todayWater").textContent = todayWaterCount;
-    document.getElementById("todayLight").textContent = todayLightCount;
-    document.getElementById("todayVent").textContent = todayVentCount;
-    document.getElementById("wateringCount").textContent = `${todayWaterCount} times`;
-    document.getElementById("fanCount").textContent = `${todayVentCount} time${todayVentCount > 1 ? "s" : ""}`;
-}
-
-function waterPlant() {
-    todayWaterCount++;
-    document.getElementById("currentAdvice").textContent = "Watering completed manually.";
-    addCareRecord("Manual watering", "User command");
-    refreshSummaryCounts();
-}
-
-function turnOnLight() {
-    todayLightCount++;
-    document.getElementById("currentAdvice").textContent = "Supplemental light activated.";
-    addCareRecord("Manual light on", "User command");
-    refreshSummaryCounts();
-}
-
-function turnOnFan() {
-    todayVentCount++;
-    document.getElementById("currentAdvice").textContent = "Ventilation started manually.";
-    addCareRecord("Manual fan on", "User command");
-    refreshSummaryCounts();
-}
-
-function simulateAutoCare() {
-    todayWaterCount++;
-    document.getElementById("currentAdvice").textContent = "Simulated Auto Care executed.";
-    addCareRecord("Auto Care (Sim)", "Timer/Threshold");
-    refreshSummaryCounts();
-}
-
-function simulateHealthy() {
-    document.getElementById("healthStatus").textContent = "Healthy";
-    document.getElementById("diseaseClass").textContent = "Healthy";
-    document.getElementById("recommendation").textContent = "No action needed";
-}
-
-function simulateYellowing() {
-    document.getElementById("healthStatus").textContent = "Warning";
-    document.getElementById("diseaseClass").textContent = "Yellowing";
-    document.getElementById("recommendation").textContent = "Inspect watering conditions.";
-}
-
-function simulateRotRisk() {
-    document.getElementById("healthStatus").textContent = "Alert";
-    document.getElementById("diseaseClass").textContent = "Dark-spot / Rot risk";
-    document.getElementById("recommendation").textContent = "Reduce watering and improve ventilation.";
-}
+    // Start polling loop
+    setInterval(async () => {
+        try {
+            const latest = await apiCall("/sensor/latest");
+            appState.sensor = latest;
+            setSystemStatus("Online & Monitoring", "healthy");
+        } catch (err) {
+            setSystemStatus("Backend Unavailable", "alert");
+        }
+        renderSystemStatus();
+        renderEnvironment();
+    }, REFRESH_INTERVAL_MS);
+});
