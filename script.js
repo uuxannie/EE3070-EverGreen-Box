@@ -21,7 +21,8 @@ const appState = {
     },
     history: [],
     chartMetric: "moisture",
-    activePlant: null
+    activePlant: null,
+    latestPhotoUrl: null
 };
 
 // Fallback plant profiles (Ideally, fetch these from /api/plants in the future)
@@ -215,6 +216,42 @@ function addCareRecord(action, trigger) {
     const row = document.createElement("tr");
     row.innerHTML = `<td>${timeStr}</td><td>${action}</td><td>${trigger}</td>`;
     tableBody.prepend(row);
+}
+
+async function refreshPlantPhoto() {
+    const imgElement = document.getElementById("plantImage");
+    if (!imgElement) return;
+
+    try {
+        const result = await apiCall("/camera/latest");
+
+        if (result.status === "success" && result.data) {
+            // 1. renew pic
+            const relativeUrl = result.data.image_url;
+            appState.latestPhotoUrl = relativeUrl; 
+
+            const baseUrl = API_BASE_URL.replace("/api", "");
+            imgElement.src = baseUrl + relativeUrl + "?t=" + new Date().getTime();
+            
+            // 2. renew capture time
+            document.getElementById("captureTime").textContent = result.data.captured_at;
+            
+            // 💡 这里的 Confidence 目前还是用你字典里写死的 (例如 95%)
+            // 等你同学的 YOLO 连上后端了，你可以改成: result.data.yolo_confidence
+            if (appState.activePlant) {
+                document.getElementById("confidence").textContent = appState.activePlant.confidence;
+            }
+
+        } else {
+            // no photo available, use fallback
+            if (appState.activePlant) {
+                imgElement.src = appState.activePlant.image;
+                document.getElementById("captureTime").textContent = "N/A (Using fallback image)";
+            }
+        }
+    } catch (error) {
+        console.error("failed to fetch latest photo:", error);
+    }
 }
 
 // ==========================================
