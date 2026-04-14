@@ -223,16 +223,21 @@ async function refreshPlantPhoto() {
     if (!imgElement) return;
 
     try {
-        // 直接尝试访问你刚才在控制台测试成功的那个绝对路径
         const response = await fetch("https://evergreen-box-backend.onrender.com/api/camera/latest");
         const result = await response.json();
 
         if (result.status === "success" && result.data) {
             const fullUrl = "https://evergreen-box-backend.onrender.com" + result.data.image_url;
-            // 强行刷新图片
-            imgElement.src = fullUrl + "?t=" + new Date().getTime();
+            
+            // --- 关键修改：直接暴力修改 src，不经过任何 if 判断 ---
+            const finalUrl = fullUrl + "?t=" + new Date().getTime();
+            imgElement.src = finalUrl;
+            
+            // 为了确认真的执行了，我们在图片旁边打个日志
+            console.log("🔥 强制覆盖！当前图片地址已修改为: ", finalUrl);
+            
+            // 顺便把那个 Waiting 删掉
             document.getElementById("captureTime").textContent = result.data.captured_at;
-            console.log("✅ 云端照片刷新成功！");
         }
     } catch (error) {
         console.error("❌ 自动刷新照片失败:", error);
