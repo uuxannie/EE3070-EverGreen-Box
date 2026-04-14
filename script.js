@@ -2,6 +2,7 @@
 // 1. CONFIGURATION & STATE MANAGEMENT
 // ==========================================
 const API_BASE_URL = "https://evergreen-box-backend.onrender.com/api";
+const RENDER_ROOT = "https://evergreen-box-backend.onrender.com";
 const REFRESH_INTERVAL_MS = 10000;
 
 // Centralized Application State (Single Source of Truth)
@@ -124,6 +125,7 @@ function changePlant() {
     appState.activePlant = plantProfiles[selected];
     renderPlantProfile();
     updateChart();
+    refreshPlantPhoto();
 }
 
 function switchChartMetric(metric) {
@@ -373,5 +375,39 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         renderSystemStatus();
         renderEnvironment();
+    }, REFRESH_INTERVAL_MS);
+});
+
+// ==========================================
+// 6. BOOTSTRAP
+// ==========================================
+window.addEventListener('DOMContentLoaded', async () => {
+    initChart();
+    
+    // Set initial active plant before fetching data
+    document.getElementById("plantSelect").value = "pothos"; 
+    changePlant(); 
+    
+    // Initial fetch of all real data
+    await fetchAllData();
+    
+    // 👇 新增 1：网页刚打开时，立刻去拉取一次云端真实照片！
+    refreshPlantPhoto();
+
+    // Start polling loop
+    setInterval(async () => {
+        try {
+            const latest = await apiCall("/sensor/latest");
+            appState.sensor = latest;
+            setSystemStatus("Online & Monitoring", "healthy");
+        } catch (err) {
+            setSystemStatus("Backend Unavailable", "alert");
+        }
+        renderSystemStatus();
+        renderEnvironment();
+        
+        // 👇 新增 2：每 10 秒钟，自动刷新一次照片！
+        refreshPlantPhoto();
+        
     }, REFRESH_INTERVAL_MS);
 });
