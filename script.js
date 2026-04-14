@@ -223,6 +223,27 @@ async function refreshPlantPhoto() {
     if (!imgElement) return;
 
     try {
+        // 直接尝试访问你刚才在控制台测试成功的那个绝对路径
+        const response = await fetch("https://evergreen-box-backend.onrender.com/api/camera/latest");
+        const result = await response.json();
+
+        if (result.status === "success" && result.data) {
+            const fullUrl = "https://evergreen-box-backend.onrender.com" + result.data.image_url;
+            // 强行刷新图片
+            imgElement.src = fullUrl + "?t=" + new Date().getTime();
+            document.getElementById("captureTime").textContent = result.data.captured_at;
+            console.log("✅ 云端照片刷新成功！");
+        }
+    } catch (error) {
+        console.error("❌ 自动刷新照片失败:", error);
+    }
+}
+/*
+async function refreshPlantPhoto() {
+    const imgElement = document.getElementById("plantImage");
+    if (!imgElement) return;
+
+    try {
         const result = await apiCall("/camera/latest");
 
         if (result.status === "success" && result.data) {
@@ -253,7 +274,7 @@ async function refreshPlantPhoto() {
         console.error("failed to fetch latest photo:", error);
     }
 }
-
+*/
 // ==========================================
 // 5. CHART & CHAT LOGIC
 // ==========================================
