@@ -141,12 +141,6 @@ const turnOffLight = () => executeDeviceCommand("grow_light", "off", "Supplement
 const turnOnFan = () => executeDeviceCommand("fan", "on", "Ventilation started to regulate temperature and airflow.");
 const turnOffFan = () => executeDeviceCommand("fan", "off", "Ventilation stopped.");
 
-// Simulation helpers (For UI testing without backend action)
-function simulateAutoCare() {
-    addCareRecord("Auto Care (Sim)", "Timer/Threshold");
-    document.getElementById("currentAdvice").textContent = "Simulated Auto Care executed.";
-}
-
 function updateHealthSimulation(status, diseaseClass, recommendation, type) {
     document.getElementById("healthStatus").textContent = status;
     document.getElementById("diseaseClass").textContent = diseaseClass;
