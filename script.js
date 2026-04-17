@@ -135,6 +135,7 @@ function switchChartMetric(metric) {
 
 // Hardware Triggers (Mapped to actual backend routes)
 const waterPlant = () => executeDeviceCommand("water_pump", "on", "Watering sequence initiated. Soil moisture should improve soon.");
+const turnOffWater = () => executeDeviceCommand("water_pump", "off", "Watering stopped.");
 const turnOnLight = () => executeDeviceCommand("grow_light", "on", "Supplemental light activated for optimal photosynthesis.");
 const turnOffLight = () => executeDeviceCommand("grow_light", "off", "Supplemental light deactivated.");
 const turnOnFan = () => executeDeviceCommand("fan", "on", "Ventilation started to regulate temperature and airflow.");
