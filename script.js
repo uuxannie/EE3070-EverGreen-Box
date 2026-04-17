@@ -92,7 +92,7 @@ async function executeDeviceCommand(target, action, successMsg) {
     renderSystemStatus();
 
     try {
-        await apiCall("/device/command", "POST", { target, action });
+        await apiCall("/device/set_state", "POST", { target, action });
         
         document.getElementById("currentAdvice").textContent = successMsg;
         addCareRecord(`Manual ${target.replace('_', ' ')}`, "User command");
@@ -222,66 +222,46 @@ function addCareRecord(action, trigger) {
 
 async function refreshPlantPhoto() {
     const imgElement = document.getElementById("plantImage");
-    if (!imgElement) return;
-
-    try {
-        const response = await fetch("https://evergreen-box-backend.onrender.com/api/camera/latest");
-        const result = await response.json();
-
-        if (result.status === "success" && result.data) {
-            const fullUrl = "https://evergreen-box-backend.onrender.com" + result.data.image_url;
-            
-            // --- 关键修改：直接暴力修改 src，不经过任何 if 判断 ---
-            const finalUrl = fullUrl + "?t=" + new Date().getTime();
-            imgElement.src = finalUrl;
-            
-            // 为了确认真的执行了，我们在图片旁边打个日志
-            console.log("🔥 强制覆盖！当前图片地址已修改为: ", finalUrl);
-            
-            // 顺便把那个 Waiting 删掉
-            document.getElementById("captureTime").textContent = result.data.captured_at;
-        }
-    } catch (error) {
-        console.error("❌ 自动刷新照片失败:", error);
-    }
-}
-/*
-async function refreshPlantPhoto() {
-    const imgElement = document.getElementById("plantImage");
-    if (!imgElement) return;
+    const captureTimeEl = document.getElementById("captureTime");
+    
+    if (!imgElement || !captureTimeEl) return;
 
     try {
         const result = await apiCall("/camera/latest");
 
         if (result.status === "success" && result.data) {
-            // 1. renew pic
-            const relativeUrl = result.data.image_url;
-            appState.latestPhotoUrl = relativeUrl; 
-
-            const baseUrl = API_BASE_URL.replace("/api", "");
-            imgElement.src = baseUrl + relativeUrl + "?t=" + new Date().getTime();
+            // Construct full URL and add cache-busting timestamp
+            const baseUrl = RENDER_ROOT;
+            const imageUrl = baseUrl + result.data.image_url + "?t=" + new Date().getTime();
             
-            // 2. renew capture time
-            document.getElementById("captureTime").textContent = result.data.captured_at;
+            imgElement.src = imageUrl;
+            captureTimeEl.textContent = result.data.captured_at;
+            appState.latestPhotoUrl = result.data.image_url;
             
-            // 💡 这里的 Confidence 目前还是用你字典里写死的 (例如 95%)
-            // 等你同学的 YOLO 连上后端了，你可以改成: result.data.yolo_confidence
-            if (appState.activePlant) {
-                document.getElementById("confidence").textContent = appState.activePlant.confidence;
-            }
-
+            console.log("✅ Plant photo updated:", imageUrl);
         } else {
-            // no photo available, use fallback
-            if (appState.activePlant) {
-                imgElement.src = appState.activePlant.image;
-                document.getElementById("captureTime").textContent = "N/A (Using fallback image)";
-            }
+            // No photo available from camera, use fallback
+            useFallbackPlantImage();
         }
     } catch (error) {
-        console.error("failed to fetch latest photo:", error);
+        console.warn("Failed to fetch latest plant photo:", error);
+        useFallbackPlantImage();
     }
 }
-*/
+
+/**
+ * Display fallback image when camera photo is unavailable
+ */
+function useFallbackPlantImage() {
+    const imgElement = document.getElementById("plantImage");
+    const captureTimeEl = document.getElementById("captureTime");
+    
+    if (!appState.activePlant) return;
+    
+    imgElement.src = appState.activePlant.image;
+    captureTimeEl.textContent = "N/A (Using fallback)";
+    console.log("📷 Using fallback image for", appState.activePlant.name);
+}
 // ==========================================
 // 5. CHART & CHAT LOGIC
 // ==========================================
