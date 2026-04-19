@@ -12,7 +12,6 @@ const appState = {
     sensor: {
         temperature: null,
         humidity: null,
-        moisture: null,
         light: null
     },
     deviceStats: {
@@ -21,7 +20,7 @@ const appState = {
         fan: 0
     },
     history: [],
-    chartMetric: "moisture",
+    chartMetric: "temperature",
     activePlant: null,
     latestPhotoUrl: null
 };
@@ -31,17 +30,17 @@ const plantProfiles = {
     cactus: {
         name: "Cactus", confidence: "96%",
         image: "https://static.planetminecraft.com/files/image/minecraft/texture-pack/2023/003/16489908-remodeledcactusicon_l.webp",
-        report: "This week, the cactus remained stable. Soil moisture stayed mostly within the preferred low range. Recommendation: avoid overwatering."
+        report: "This week, the cactus remained stable with optimal temperature and light levels. Recommendation: continue with the current watering schedule."
     },
     succulent: {
         name: "Succulent", confidence: "94%",
         image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRZ5mV5N0Kt81Lv7CzONjqdBbQkeS-fSY374w&s",
-        report: "This week, the succulent remained healthy overall. Light levels were stable. Recommendation: continue moderate watering."
+        report: "This week, the succulent remained healthy overall. Light levels and humidity were stable. Recommendation: maintain current care conditions."
     },
     pothos: {
         name: "Pothos", confidence: "95%",
         image: "https://www.guide-to-houseplants.com/images/golden-pothos.jpg",
-        report: "This week, the pothos remained generally healthy. Recommendation: maintain the current watering schedule and continue automatic monitoring."
+        report: "This week, the pothos remained generally healthy. Environmental conditions were favorable. Recommendation: maintain the current monitoring schedule."
     }
 };
 
@@ -134,7 +133,7 @@ function switchChartMetric(metric) {
 }
 
 // Hardware Triggers (Mapped to actual backend routes)
-const waterPlant = () => executeDeviceCommand("water_pump", "on", "Watering sequence initiated. Soil moisture should improve soon.");
+const waterPlant = () => executeDeviceCommand("water_pump", "on", "Watering sequence initiated.");
 const turnOffWater = () => executeDeviceCommand("water_pump", "off", "Watering stopped.");
 const turnOnLight = () => executeDeviceCommand("grow_light", "on", "Supplemental light activated for optimal photosynthesis.");
 const turnOffLight = () => executeDeviceCommand("grow_light", "off", "Supplemental light deactivated.");
@@ -175,11 +174,10 @@ function renderSystemStatus() {
 }
 
 function renderEnvironment() {
-    const { temperature, humidity, moisture, light } = appState.sensor;
+    const { temperature, humidity, light } = appState.sensor;
     
     document.getElementById("temperature").textContent = temperature != null ? `${temperature}°C` : "--°C";
     document.getElementById("humidity").textContent = humidity != null ? `${humidity}%` : "--%";
-    document.getElementById("soilMoisture").textContent = moisture != null ? `${moisture}%` : "--%";
     document.getElementById("lightLevel").textContent = light != null ? `${light} lux` : "-- lux";
 }
 
@@ -283,7 +281,7 @@ function updateChart() {
     });
 
     const dataPoints = appState.history.map(row => row[metric] || 0);
-    const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1).replace("moisture", "Soil Moisture");
+    const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
 
     trendChart.data.labels = labels;
     trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
@@ -307,7 +305,7 @@ async function sendMessage() {
     chatBox.scrollTop = chatBox.scrollHeight;
 
     // Construct Context strictly from appState, not by scraping the DOM
-    const contextStr = `Name: ${appState.activePlant?.name || 'Unknown'}, Soil: ${appState.sensor.moisture}%, Temp: ${appState.sensor.temperature}°C, Hum: ${appState.sensor.humidity}%`;
+    const contextStr = `Name: ${appState.activePlant?.name || 'Unknown'}, Temp: ${appState.sensor.temperature}°C, Hum: ${appState.sensor.humidity}%`;
 
     try {
         const data = await apiCall("/chat", "POST", {
