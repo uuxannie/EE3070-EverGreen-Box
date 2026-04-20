@@ -141,13 +141,19 @@ const turnOnFan = () => executeDeviceCommand("fan", "on", "Ventilation started t
 const turnOffFan = () => executeDeviceCommand("fan", "off", "Ventilation stopped.");
 
 function updateHealthSimulation(status, diseaseClass, recommendation, type) {
+    // Update display with test data
     document.getElementById("healthStatus").textContent = status;
     document.getElementById("diseaseClass").textContent = diseaseClass;
     document.getElementById("recommendation").textContent = recommendation;
     setSystemStatus(status === "Healthy" ? "Healthy" : `${diseaseClass} detected`, type);
     renderSystemStatus();
+    console.log("⚠️ Simulation mode - using test data. Deploy the webcam for real detection.");
 }
 
+// Simulation buttons for testing (will be overridden by real YOLO data when available)
+const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
+const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
+const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
 const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
 const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
 const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
@@ -257,6 +263,52 @@ function useFallbackPlantImage() {
     captureTimeEl.textContent = "N/A (Using fallback)";
     console.log("📷 Using fallback image for", appState.activePlant.name);
 }
+
+/**
+ * Fetch and display real YOLO detection results from backend
+ */
+async function refreshYoloResults() {
+    const plantTypeEl = document.getElementById("plantType");
+    const confidenceEl = document.getElementById("confidence");
+    const healthStatusEl = document.getElementById("healthStatus");
+    const diseaseClassEl = document.getElementById("diseaseClass");
+    const recommendationEl = document.getElementById("recommendation");
+    
+    if (!plantTypeEl || !confidenceEl) return;
+
+    try {
+        const result = await apiCall("/camera/detection");
+
+        if (result.status === "success" && result.data) {
+            const detection = result.data;
+            
+            // Update UI with real detection results
+            plantTypeEl.textContent = detection.plant_type.charAt(0).toUpperCase() + detection.plant_type.slice(1);
+            confidenceEl.textContent = detection.confidence;
+            healthStatusEl.textContent = detection.health_status;
+            diseaseClassEl.textContent = detection.disease_class;
+            recommendationEl.textContent = detection.recommendation;
+            
+            // Update system status based on health
+            const statusType = detection.health_status === "Healthy" ? "healthy" : 
+                             detection.health_status === "Warning" ? "warning" : "alert";
+            setSystemStatus(`Plant Status: ${detection.health_status}`, statusType);
+            
+            console.log("✅ YOLO results updated:", detection);
+        } else {
+            // Use fallback values if no detection available
+            plantTypeEl.textContent = appState.activePlant?.name || "Unknown";
+            confidenceEl.textContent = "N/A";
+            healthStatusEl.textContent = "Monitoring...";
+            diseaseClassEl.textContent = "Waiting for analysis...";
+            recommendationEl.textContent = "Processing first detection...";
+            console.log("📊 No detection data yet, using defaults");
+        }
+    } catch (error) {
+        console.warn("Failed to fetch YOLO detection results:", error);
+        // Gracefully handle errors - keep showing previous values
+    }
+}
 // ==========================================
 // 5. CHART & CHAT LOGIC
 // ==========================================
@@ -338,36 +390,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Initial fetch of all real data
     await fetchAllData();
-
-    // Start polling loop
-    setInterval(async () => {
-        try {
-            const latest = await apiCall("/sensor/latest");
-            appState.sensor = latest;
-            setSystemStatus("Online & Monitoring", "healthy");
-        } catch (err) {
-            setSystemStatus("Backend Unavailable", "alert");
-        }
-        renderSystemStatus();
-        renderEnvironment();
-    }, REFRESH_INTERVAL_MS);
-});
-
-// ==========================================
-// 6. BOOTSTRAP
-// ==========================================
-window.addEventListener('DOMContentLoaded', async () => {
-    initChart();
     
-    // Set initial active plant before fetching data
-    document.getElementById("plantSelect").value = "pothos"; 
-    changePlant(); 
-    
-    // Initial fetch of all real data
-    await fetchAllData();
-    
-    // 👇 新增 1：网页刚打开时，立刻去拉取一次云端真实照片！
-    refreshPlantPhoto();
+    // Fetch real plant photo and YOLO detection results
+    await refreshPlantPhoto();
+    await refreshYoloResults();
 
     // Start polling loop
     setInterval(async () => {
@@ -381,8 +407,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         renderSystemStatus();
         renderEnvironment();
         
-        // 👇 新增 2：每 10 秒钟，自动刷新一次照片！
-        refreshPlantPhoto();
+        // Refresh plant photo and detection every interval
+        await refreshPlantPhoto();
+        await refreshYoloResults();
         
     }, REFRESH_INTERVAL_MS);
 });
