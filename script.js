@@ -146,7 +146,7 @@ function updateHealthSimulation(status, confidence, type) {
     document.getElementById("diseaseClass").textContent = confidence; // YOLO Output confidence
     
     // Set recommendation based on status
-    if (status === "Healthy") {
+    if (status === "Healthy" || status === "Unknown") {
         document.getElementById("recommendation").textContent = "Continue monitoring";
     } else {
         document.getElementById("recommendation").textContent = "Please check your plant";
@@ -293,7 +293,7 @@ async function refreshYoloResults() {
             diseaseClassEl.textContent = detection.confidence || "0.0"; // YOLO confidence value
             
             // Set recommendation based on health status
-            if (detection.health_status === "Healthy") {
+            if (detection.health_status === "Healthy" || detection.health_status === "Unknown") {
                 recommendationEl.textContent = "Continue monitoring";
             } else {
                 recommendationEl.textContent = "Please check your plant";
