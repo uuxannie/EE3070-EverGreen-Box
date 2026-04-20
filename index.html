@@ -123,8 +123,11 @@
                 <section class="panel">
                     <h2>Growth Time-lapse</h2>
                     <div class="timelapse-box">
-                        <img src="timelapse sample/plant_timelapse.gif" alt="Plant Growth Time-lapse" class="timelapse-gif" />
-                        <p class="timelapse-caption">Daily images captured by the camera are combined into a growth time-lapse sequence.</p>
+                        <video id="timelapseVideo" width="640" height="480" controls style="max-width: 100%; border-radius: 10px;">
+                            <source src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <p class="timelapse-caption" id="videoInfo">Generating timelapse video...</p>
                     </div>
                 </section>
             </div>

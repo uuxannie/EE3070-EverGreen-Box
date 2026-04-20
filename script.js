@@ -404,7 +404,34 @@ document.getElementById("chatInput").addEventListener("keypress", (e) => {
 });
 
 // ==========================================
-// 6. BOOTSTRAP
+// 7. TIMELAPSE VIDEO GENERATION
+// ==========================================
+async function generateTimelapse() {
+    try {
+        console.log("🎬 Generating timelapse video...");
+        const response = await fetch(`${API_BASE_URL}/camera/generate-demo-video`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            const videoUrl = `${RENDER_ROOT}${result.video_url}`;
+            document.getElementById('timelapseVideo').src = videoUrl;
+            document.getElementById('videoInfo').textContent = 
+                `${result.frame_count} frames | ${result.file_size_mb} MB | ${result.skipped_frames} skipped`;
+            console.log("✅ Timelapse video ready:", videoUrl);
+        } else {
+            document.getElementById('videoInfo').textContent = `Generation failed: ${result.error || 'Unknown error'}`;
+            console.error("❌ Timelapse generation failed:", result.error);
+        }
+    } catch (error) {
+        document.getElementById('videoInfo').textContent = 'Error generating timelapse';
+        console.error("❌ Error generating timelapse:", error);
+    }
+}
+
+// ==========================================
+// 8. BOOTSTRAP
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
     initChart();
@@ -419,6 +446,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Fetch real plant photo and YOLO detection results
     await refreshPlantPhoto();
     await refreshYoloResults();
+    
+    // Generate timelapse video
+    await generateTimelapse();
 
     // Start polling loop
     setInterval(async () => {
