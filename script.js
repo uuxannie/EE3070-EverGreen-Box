@@ -315,10 +315,37 @@ async function refreshYoloResults() {
 
 function initChart() {
     const ctx = document.getElementById("trendChart").getContext("2d");
+    // Initialize with sample cat data immediately
     trendChart = new Chart(ctx, {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Loading...", data: [], tension: 0.3, fill: false, borderColor: '#2e7d32' }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } }
+        data: {
+            labels: Array.from({ length: 20 }, (_, i) => `${i}`),
+            datasets: [{
+                label: "🐱 Sample Data",
+                data: [30, 50, 70, 70, 60, 50, 50, 60, 70, 70, 50, 35, 35, 32, 35, 30, 25, 20, 15, 10],
+                tension: 0.3,
+                fill: false,
+                borderColor: '#2e7d32',
+                borderWidth: 3,
+                pointRadius: 4,
+                pointBackgroundColor: '#4caf50',
+                pointBorderColor: '#2e7d32',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true, position: 'top' }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
     });
 }
 
