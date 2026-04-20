@@ -332,9 +332,9 @@ function updateChart() {
     const dataPoints = appState.history.map(row => row[metric] || 0);
     const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
 
-    // Calculate dynamic y-axis max based on actual data
+    // Calculate y-axis max: at least 50% larger than max data, and minimum 60 to keep data in middle-upper area
     const maxDataValue = Math.max(...dataPoints);
-    const yAxisMax = Math.ceil(maxDataValue * 1.2);
+    const yAxisMax = Math.max(60, Math.ceil(maxDataValue * 1.5));
 
     trendChart.data.labels = labels;
     trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
