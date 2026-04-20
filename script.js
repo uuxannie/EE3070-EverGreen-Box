@@ -322,18 +322,21 @@ function initChart() {
     console.log("✅ Canvas context obtained");
     
     // Initialize with sample cat data immediately
+    // Cat head shape: up↗ down↘ (half) horizontal— up↗ down↘
+    const catData = [10, 25, 40, 55, 68, 72, 75, 70, 60, 45, 38, 35, 36, 40, 55, 68, 72, 75, 65, 48];
+    
     trendChart = new Chart(context, {
         type: "line",
         data: {
             labels: Array.from({ length: 20 }, (_, i) => `${i}`),
             datasets: [{
                 label: "🐱 Sample Data",
-                data: [30, 50, 70, 70, 60, 50, 50, 60, 70, 70, 50, 35, 35, 32, 35, 30, 25, 20, 15, 10],
-                tension: 0.3,
+                data: catData,
+                tension: 0.4,
                 fill: false,
                 borderColor: '#2e7d32',
                 borderWidth: 3,
-                pointRadius: 4,
+                pointRadius: 5,
                 pointBackgroundColor: '#4caf50',
                 pointBorderColor: '#2e7d32',
                 pointBorderWidth: 2
@@ -348,7 +351,7 @@ function initChart() {
             scales: {
                 y: {
                     beginAtZero: true,
-                    max: 100
+                    max: 90
                 }
             }
         }
@@ -364,13 +367,14 @@ function updateChart() {
 
     // If no real data, show a cute cat head chart 🐱
     if (appState.history.length === 0) {
+        const catData = [10, 25, 40, 55, 68, 72, 75, 70, 60, 45, 38, 35, 36, 40, 55, 68, 72, 75, 65, 48];
         labels = Array.from({ length: 20 }, (_, i) => `${i}`);
-        // Cat head shape: left ear (up) → head (down) → right ear (up) → face (down) → cute smile
-        dataPoints = [30, 50, 70, 70, 60, 50, 50, 60, 70, 70, 50, 35, 35, 32, 35, 30, 25, 20, 15, 10];
+        dataPoints = catData;
         metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
         trendChart.data.labels = labels;
         trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel} (Sample: 🐱)`;
         trendChart.data.datasets[0].data = dataPoints;
+        trendChart.options.scales.y.max = 90;
         trendChart.update();
         return;
     }
@@ -384,9 +388,14 @@ function updateChart() {
     dataPoints = appState.history.map(row => row[metric] || 0);
     metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
 
+    // Calculate dynamic y-axis max based on actual data
+    const maxDataValue = Math.max(...dataPoints);
+    const yAxisMax = Math.ceil(maxDataValue * 1.2); // 20% padding above max value
+
     trendChart.data.labels = labels;
     trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
     trendChart.data.datasets[0].data = dataPoints;
+    trendChart.options.scales.y.max = yAxisMax;
     trendChart.update();
 }
 
