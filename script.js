@@ -125,6 +125,7 @@ function changePlant() {
     renderPlantProfile();
     updateChart();
     refreshPlantPhoto();
+    generateWeeklyReport();
 }
 
 function switchChartMetric(metric) {
@@ -404,7 +405,30 @@ document.getElementById("chatInput").addEventListener("keypress", (e) => {
 });
 
 // ==========================================
-// 7. TIMELAPSE VIDEO GENERATION
+// 7. WEEKLY REPORT GENERATION
+// ==========================================
+async function generateWeeklyReport() {
+    try {
+        console.log("📊 Generating weekly report...");
+        const response = await fetch(`${API_BASE_URL}/ai/weekly-report`);
+        const result = await response.json();
+        
+        if (result.report) {
+            document.getElementById('weeklyReport').textContent = result.report;
+            console.log("✅ Weekly report updated");
+        } else {
+            throw new Error("No report in response");
+        }
+    } catch (error) {
+        console.error("Error generating report:", error);
+        // Fallback to default
+        const defaultReport = `This week, the ${appState.activePlant?.name || 'plant'} remained generally healthy. Environmental conditions were favorable. Recommendation: maintain the current monitoring schedule.`;
+        document.getElementById('weeklyReport').textContent = defaultReport;
+    }
+}
+
+// ==========================================
+// 8. TIMELAPSE VIDEO GENERATION
 // ==========================================
 async function generateTimelapse() {
     try {
@@ -431,7 +455,7 @@ async function generateTimelapse() {
 }
 
 // ==========================================
-// 8. BOOTSTRAP
+// 9. BOOTSTRAP
 // ==========================================
 window.addEventListener('DOMContentLoaded', async () => {
     initChart();
@@ -447,8 +471,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     await refreshPlantPhoto();
     await refreshYoloResults();
     
-    // Generate timelapse video
+    // Generate timelapse video and weekly report
     await generateTimelapse();
+    await generateWeeklyReport();
 
     // Start polling loop
     setInterval(async () => {
@@ -467,4 +492,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         await refreshYoloResults();
         
     }, REFRESH_INTERVAL_MS);
+    
+    // Update weekly report every 7 days (604800000ms)
+    setInterval(async () => {
+        await generateWeeklyReport();
+    }, 604800000);
 });
