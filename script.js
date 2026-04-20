@@ -438,9 +438,26 @@ async function generateTimelapse() {
         });
         const result = await response.json();
         
+        console.log("Response from backend:", result);
+        
         if (result.success) {
             const videoUrl = `${RENDER_ROOT}${result.video_url}`;
-            document.getElementById('timelapseVideo').src = videoUrl;
+            console.log("Constructed video URL:", videoUrl);
+            
+            const videoElement = document.getElementById('timelapseVideo');
+            videoElement.src = videoUrl;
+            
+            // Add error listener for debugging
+            videoElement.onerror = () => {
+                console.error("❌ Video failed to load. URL:", videoUrl);
+                document.getElementById('videoInfo').textContent = `Video failed to load: ${videoUrl}`;
+            };
+            
+            // Add canplay listener for successful load
+            videoElement.oncanplay = () => {
+                console.log("✅ Video successfully loaded");
+            };
+            
             document.getElementById('videoInfo').textContent = 
                 `${result.frame_count} frames | ${result.file_size_mb} MB | ${result.skipped_frames} skipped`;
             console.log("✅ Timelapse video ready:", videoUrl);
