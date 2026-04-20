@@ -154,9 +154,6 @@ function updateHealthSimulation(status, diseaseClass, recommendation, type) {
 const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
 const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
 const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
-const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
-const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
-const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
 
 
 // ==========================================
