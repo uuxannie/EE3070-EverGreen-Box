@@ -445,7 +445,11 @@ async function generateTimelapse() {
             console.log("Constructed video URL:", videoUrl);
             
             const videoElement = document.getElementById('timelapseVideo');
-            videoElement.src = videoUrl;
+            const sourceElement = videoElement.querySelector('source');
+            
+            // Set source element src
+            sourceElement.src = videoUrl;
+            sourceElement.type = "video/mp4";
             
             // Add error listener for debugging
             videoElement.onerror = () => {
@@ -457,6 +461,9 @@ async function generateTimelapse() {
             videoElement.oncanplay = () => {
                 console.log("✅ Video successfully loaded");
             };
+            
+            // Reload the video element
+            videoElement.load();
             
             document.getElementById('videoInfo').textContent = 
                 `${result.frame_count} frames | ${result.file_size_mb} MB | ${result.skipped_frames} skipped`;
