@@ -288,9 +288,9 @@ async function refreshYoloResults() {
             
             // Update UI with real detection results
             plantTypeEl.textContent = detection.plant_type.charAt(0).toUpperCase() + detection.plant_type.slice(1);
-            confidenceEl.textContent = detection.confidence;
+            confidenceEl.textContent = detection.confidence_plant || "N/A"; // Plant recognition confidence
             healthStatusEl.textContent = detection.health_status;
-            diseaseClassEl.textContent = detection.confidence || "0.0"; // YOLO confidence value
+            diseaseClassEl.textContent = detection.confidence_health || "0.0"; // YOLO confidence value
             
             // Set recommendation based on health status
             if (detection.health_status === "Healthy" || detection.health_status === "Unknown") {
