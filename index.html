@@ -109,9 +109,9 @@
 
                 <section class="panel">
                     <h2>Chat with Your Plant</h2>
-                    <div class="chat-box" id="chatBox">
+                    <div class="chat-box" id="chatBox" style="height: 400px; overflow-y: auto;">
                         <div class="chat-message plant">
-                            Hi! I’m your Pothos. Thanks for checking on me today 🌿
+                            Hi! I'm your Pothos. Thanks for checking on me today 🌿
                         </div>
                     </div>
                     <div class="chat-input-row">
@@ -121,15 +121,12 @@
                 </section>
 
                 <section class="panel">
-                    <h2>Growth Time-lapse</h2>
-                    <div class="timelapse-box">
-                        <video id="timelapseVideo" width="640" height="480" controls style="max-width: 100%; border-radius: 10px;">
-                            <source src="" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                        <p class="timelapse-caption" id="videoInfo">Generating timelapse video...</p>
+                    <h2>Weekly AI Report</h2>
+                    <div class="report-box" id="weeklyReport">
+                        Loading AI analysis...
                     </div>
                 </section>
+
             </div>
 
             <div class="column">
@@ -169,9 +166,13 @@
                 </section>
 
                 <section class="panel">
-                    <h2>Weekly AI Report</h2>
-                    <div class="report-box" id="weeklyReport">
-                        Loading AI analysis...
+                    <h2>Growth Time-lapse</h2>
+                    <div class="timelapse-box">
+                        <video id="timelapseVideo" width="640" height="480" controls style="max-width: 100%; border-radius: 10px;">
+                            <source src="" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                        <p class="timelapse-caption" id="videoInfo">Generating timelapse video...</p>
                     </div>
                 </section>
             </div>
