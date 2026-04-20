@@ -311,86 +311,30 @@ async function refreshYoloResults() {
 // ==========================================
 
 function initChart() {
-    console.log("🐱 initChart called - creating chart with sample data");
-    const ctx = document.getElementById("trendChart");
-    if (!ctx) {
-        console.error("❌ trendChart canvas not found!");
-        return;
-    }
-    
-    const context = ctx.getContext("2d");
-    console.log("✅ Canvas context obtained");
-    
-    // Initialize with sample cat data immediately
-    // Cat head shape: up↗ down↘ (half) horizontal— up↗ down↘
-    const catData = [10, 25, 40, 55, 68, 72, 75, 70, 60, 45, 38, 35, 36, 40, 55, 68, 72, 75, 65, 48];
-    
-    trendChart = new Chart(context, {
+    const ctx = document.getElementById("trendChart").getContext("2d");
+    trendChart = new Chart(ctx, {
         type: "line",
-        data: {
-            labels: Array.from({ length: 20 }, (_, i) => `${i}`),
-            datasets: [{
-                label: "🐱 Sample Data",
-                data: catData,
-                tension: 0.4,
-                fill: false,
-                borderColor: '#2e7d32',
-                borderWidth: 3,
-                pointRadius: 5,
-                pointBackgroundColor: '#4caf50',
-                pointBorderColor: '#2e7d32',
-                pointBorderWidth: 2
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: true, position: 'top' }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    max: 90
-                }
-            }
-        }
+        data: { labels: [], datasets: [{ label: "Loading...", data: [], tension: 0.3, fill: false, borderColor: '#2e7d32' }] },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } }
     });
-    console.log("✅ Chart initialized with cat data!");
 }
 
 function updateChart() {
-    if (!trendChart || !appState.activePlant) return;
+    if (!trendChart || appState.history.length === 0 || !appState.activePlant) return;
 
     const metric = appState.chartMetric;
-    let labels, dataPoints, metricLabel;
-
-    // If no real data, show a cute cat head chart 🐱
-    if (appState.history.length === 0) {
-        const catData = [10, 25, 40, 55, 68, 72, 75, 70, 60, 45, 38, 35, 36, 40, 55, 68, 72, 75, 65, 48];
-        labels = Array.from({ length: 20 }, (_, i) => `${i}`);
-        dataPoints = catData;
-        metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
-        trendChart.data.labels = labels;
-        trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel} (Sample: 🐱)`;
-        trendChart.data.datasets[0].data = dataPoints;
-        trendChart.options.scales.y.max = 90;
-        trendChart.update();
-        return;
-    }
-
-    labels = appState.history.map(row => {
+    const labels = appState.history.map(row => {
         if (!row.timestamp) return "Unknown";
         const d = new Date(row.timestamp);
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     });
 
-    dataPoints = appState.history.map(row => row[metric] || 0);
-    metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
+    const dataPoints = appState.history.map(row => row[metric] || 0);
+    const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
 
     // Calculate dynamic y-axis max based on actual data
     const maxDataValue = Math.max(...dataPoints);
-    const yAxisMax = Math.ceil(maxDataValue * 1.2); // 20% padding above max value
+    const yAxisMax = Math.ceil(maxDataValue * 1.2);
 
     trendChart.data.labels = labels;
     trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
