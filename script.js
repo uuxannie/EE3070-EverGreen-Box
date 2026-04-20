@@ -323,17 +323,32 @@ function initChart() {
 }
 
 function updateChart() {
-    if (!trendChart || appState.history.length === 0 || !appState.activePlant) return;
+    if (!trendChart || !appState.activePlant) return;
 
     const metric = appState.chartMetric;
-    const labels = appState.history.map(row => {
+    let labels, dataPoints, metricLabel;
+
+    // If no real data, show a cute cat head chart 🐱
+    if (appState.history.length === 0) {
+        labels = Array.from({ length: 20 }, (_, i) => `${i}`);
+        // Cat head shape: left ear (up) → head (down) → right ear (up) → face (down) → cute smile
+        dataPoints = [30, 50, 70, 70, 60, 50, 50, 60, 70, 70, 50, 35, 35, 32, 35, 30, 25, 20, 15, 10];
+        metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
+        trendChart.data.labels = labels;
+        trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel} (Sample: 🐱)`;
+        trendChart.data.datasets[0].data = dataPoints;
+        trendChart.update();
+        return;
+    }
+
+    labels = appState.history.map(row => {
         if (!row.timestamp) return "Unknown";
         const d = new Date(row.timestamp);
         return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     });
 
-    const dataPoints = appState.history.map(row => row[metric] || 0);
-    const metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
+    dataPoints = appState.history.map(row => row[metric] || 0);
+    metricLabel = metric.charAt(0).toUpperCase() + metric.slice(1);
 
     trendChart.data.labels = labels;
     trendChart.data.datasets[0].label = `${appState.activePlant.name} - ${metricLabel}`;
