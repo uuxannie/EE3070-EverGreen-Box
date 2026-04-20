@@ -314,9 +314,18 @@ async function refreshYoloResults() {
 // ==========================================
 
 function initChart() {
-    const ctx = document.getElementById("trendChart").getContext("2d");
+    console.log("🐱 initChart called - creating chart with sample data");
+    const ctx = document.getElementById("trendChart");
+    if (!ctx) {
+        console.error("❌ trendChart canvas not found!");
+        return;
+    }
+    
+    const context = ctx.getContext("2d");
+    console.log("✅ Canvas context obtained");
+    
     // Initialize with sample cat data immediately
-    trendChart = new Chart(ctx, {
+    trendChart = new Chart(context, {
         type: "line",
         data: {
             labels: Array.from({ length: 20 }, (_, i) => `${i}`),
@@ -347,6 +356,7 @@ function initChart() {
             }
         }
     });
+    console.log("✅ Chart initialized with cat data!");
 }
 
 function updateChart() {
