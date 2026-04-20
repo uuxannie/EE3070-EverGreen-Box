@@ -140,20 +140,27 @@ const turnOffLight = () => executeDeviceCommand("grow_light", "off", "Supplement
 const turnOnFan = () => executeDeviceCommand("fan", "on", "Ventilation started to regulate temperature and airflow.");
 const turnOffFan = () => executeDeviceCommand("fan", "off", "Ventilation stopped.");
 
-function updateHealthSimulation(status, diseaseClass, recommendation, type) {
+function updateHealthSimulation(status, confidence, type) {
     // Update display with test data
     document.getElementById("healthStatus").textContent = status;
-    document.getElementById("diseaseClass").textContent = diseaseClass;
-    document.getElementById("recommendation").textContent = recommendation;
-    setSystemStatus(status === "Healthy" ? "Healthy" : `${diseaseClass} detected`, type);
+    document.getElementById("diseaseClass").textContent = confidence; // YOLO Output confidence
+    
+    // Set recommendation based on status
+    if (status === "Healthy") {
+        document.getElementById("recommendation").textContent = "Continue monitoring";
+    } else {
+        document.getElementById("recommendation").textContent = "Please check your plant";
+    }
+    
+    setSystemStatus(status === "Healthy" ? "Healthy" : `Anomaly detected`, type);
     renderSystemStatus();
     console.log("⚠️ Simulation mode - using test data. Deploy the webcam for real detection.");
 }
 
 // Simulation buttons for testing (will be overridden by real YOLO data when available)
-const simulateHealthy = () => updateHealthSimulation("Healthy", "Healthy", "No action needed", "healthy");
-const simulateYellowing = () => updateHealthSimulation("Warning", "Yellowing", "Inspect watering conditions.", "warning");
-const simulateRotRisk = () => updateHealthSimulation("Alert", "Dark-spot / Rot risk", "Reduce watering and improve ventilation.", "alert");
+const simulateHealthy = () => updateHealthSimulation("Healthy", "0.95", "healthy");
+const simulateYellowing = () => updateHealthSimulation("Warning", "0.78", "warning");
+const simulateRotRisk = () => updateHealthSimulation("Alert", "0.82", "alert");
 
 
 // ==========================================
@@ -283,8 +290,14 @@ async function refreshYoloResults() {
             plantTypeEl.textContent = detection.plant_type.charAt(0).toUpperCase() + detection.plant_type.slice(1);
             confidenceEl.textContent = detection.confidence;
             healthStatusEl.textContent = detection.health_status;
-            diseaseClassEl.textContent = detection.disease_class;
-            recommendationEl.textContent = detection.recommendation;
+            diseaseClassEl.textContent = detection.confidence || "0.0"; // YOLO confidence value
+            
+            // Set recommendation based on health status
+            if (detection.health_status === "Healthy") {
+                recommendationEl.textContent = "Continue monitoring";
+            } else {
+                recommendationEl.textContent = "Please check your plant";
+            }
             
             // Update system status based on health
             const statusType = detection.health_status === "Healthy" ? "healthy" : 
@@ -296,9 +309,9 @@ async function refreshYoloResults() {
             // Use fallback values if no detection available
             plantTypeEl.textContent = appState.activePlant?.name || "Unknown";
             confidenceEl.textContent = "N/A";
-            healthStatusEl.textContent = "Monitoring...";
-            diseaseClassEl.textContent = "Waiting for analysis...";
-            recommendationEl.textContent = "Processing first detection...";
+            healthStatusEl.textContent = "Unknown";
+            diseaseClassEl.textContent = "0.0";
+            recommendationEl.textContent = "Continue monitoring";
             console.log("📊 No detection data yet, using defaults");
         }
     } catch (error) {
