@@ -328,7 +328,17 @@ function initChart() {
     trendChart = new Chart(ctx, {
         type: "line",
         data: { labels: [], datasets: [{ label: "Loading...", data: [], tension: 0.3, fill: false, borderColor: '#2e7d32' }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: true } } }
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: true } },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 60
+                }
+            }
+        }
     });
 }
 
