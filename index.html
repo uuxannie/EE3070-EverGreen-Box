@@ -173,6 +173,10 @@
                             Your browser does not support the video tag.
                         </video>
                         <p class="timelapse-caption" id="videoInfo">Generating timelapse video...</p>
+                        <div style="margin-top: 10px; display: flex; gap: 10px; justify-content: center;">
+                            <button onclick="generateTimelapse(false)" style="padding: 8px 16px; cursor: pointer;">🎬 Generate New Video</button>
+                            <button onclick="generateTimelapse(true)" style="padding: 8px 16px; cursor: pointer; background-color: #666;">♻️ Use Existing Data</button>
+                        </div>
                     </div>
                 </section>
             </div>

@@ -430,11 +430,13 @@ async function generateWeeklyReport() {
 // ==========================================
 // 8. TIMELAPSE VIDEO GENERATION
 // ==========================================
-async function generateTimelapse() {
+async function generateTimelapse(useExistingData = false) {
     try {
         console.log("🎬 Generating timelapse video...");
         const response = await fetch(`${API_BASE_URL}/camera/generate-demo-video`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ use_existing_data: useExistingData })
         });
         const result = await response.json();
         
@@ -465,15 +467,16 @@ async function generateTimelapse() {
             // Reload the video element
             videoElement.load();
             
+            const sourceLabel = useExistingData ? '(using existing data)' : '';
             document.getElementById('videoInfo').textContent = 
-                `${result.frame_count} frames | ${result.file_size_mb} MB | ${result.skipped_frames} skipped`;
+                `${result.frame_count} frames | ${result.file_size_mb} MB | ${result.skipped_frames} skipped ${sourceLabel}`;
             console.log("✅ Timelapse video ready:", videoUrl);
         } else {
-            document.getElementById('videoInfo').textContent = `Generation failed: ${result.error || 'Unknown error'}`;
+            document.getElementById('videoInfo').textContent = `Generation failed: ${result.error || 'Unknown error'} | Try clicking the button below.`;
             console.error("❌ Timelapse generation failed:", result.error);
         }
     } catch (error) {
-        document.getElementById('videoInfo').textContent = 'Error generating timelapse';
+        document.getElementById('videoInfo').textContent = 'Error generating timelapse - Check backend connection';
         console.error("❌ Error generating timelapse:", error);
     }
 }
