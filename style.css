@@ -321,6 +321,11 @@ button:hover {
     color: #5e6a5e;
 }
 
+#timelapseVideo {
+    max-height: 280px !important;
+    width: auto !important;
+}
+
 .timelapse-title {
     font-size: 1.1rem;
     font-weight: bold;
