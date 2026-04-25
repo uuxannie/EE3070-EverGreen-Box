@@ -94,7 +94,12 @@ async function executeDeviceCommand(target, action, successMsg) {
         await apiCall("/device/set_state", "POST", { target, action });
         
         document.getElementById("currentAdvice").textContent = successMsg;
-        addCareRecord(`Manual ${target.replace('_', ' ')}`, "User command");
+        
+        // Only record and count "on" actions, not "off" actions
+        if (action === "on") {
+            addCareRecord(`Manual ${target.replace('_', ' ')}`, "User command");
+        }
+        
         setSystemStatus("Command executed successfully", "healthy");
         
         // Re-sync stats after an action
